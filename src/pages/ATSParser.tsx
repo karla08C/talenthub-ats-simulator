@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ExpertTip } from "@/components/ExpertTip";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -10,14 +10,49 @@ import {
   AlertTriangle,
   CheckCircle,
   FileSearch,
+  Loader2,
 } from "lucide-react";
 import type { TranslationKey } from "@/i18n/translations";
+import * as pdfjsLib from "pdfjs-dist";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.mjs",
+  import.meta.url
+).toString();
+
+async function extractTextFromPDF(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item: any) => item.str)
+      .join(" ");
+    pages.push(text);
+  }
+  return pages.join("\n\n");
+}
+
+async function extractTextFromFile(file: File): Promise<string> {
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  if (ext === "pdf") {
+    return extractTextFromPDF(file);
+  }
+  // txt or other text files
+  return file.text();
+}
 
 export default function ATSParser() {
   const { t } = useLanguage();
   const [resumeText, setResumeText] = useState("");
   const [parsed, setParsed] = useState(false);
   const [rawOutput, setRawOutput] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sampleWarnings: { type: string; messageKey: TranslationKey }[] = [
     { type: "error", messageKey: "ats.warn1" },
@@ -25,6 +60,41 @@ export default function ATSParser() {
     { type: "warning", messageKey: "ats.warn3" },
     { type: "success", messageKey: "ats.warn4" },
   ];
+
+  const handleFile = useCallback(async (file: File) => {
+    setUploading(true);
+    setUploadError("");
+    setFileName("");
+    try {
+      const text = await extractTextFromFile(file);
+      if (text.trim()) {
+        setResumeText(text);
+        setFileName(file.name);
+      } else {
+        setUploadError(t("ats.uploadError"));
+      }
+    } catch {
+      setUploadError(t("ats.uploadError"));
+    } finally {
+      setUploading(false);
+    }
+  }, [t]);
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+    e.target.value = "";
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  }, [handleFile]);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
 
   const handleSimulate = () => {
     if (!resumeText.trim()) return;
@@ -49,17 +119,58 @@ export default function ATSParser() {
 
         {!parsed ? (
           <div className="space-y-4">
-            <div className="border-2 border-dashed rounded-xl p-10 text-center bg-card hover:border-primary/40 transition-colors">
+            {/* Upload area with drag & drop */}
+            <div
+              className="border-2 border-dashed rounded-xl p-10 text-center bg-card hover:border-primary/40 transition-colors cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.txt,.text"
+                className="hidden"
+                onChange={handleFileInput}
+              />
               <div className="flex flex-col items-center gap-3">
                 <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Upload className="h-6 w-6 text-primary animate-pulse-soft" />
+                  {uploading ? (
+                    <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                  ) : (
+                    <Upload className="h-6 w-6 text-primary animate-pulse-soft" />
+                  )}
                 </div>
                 <div>
-                  <p className="font-medium">{t("ats.paste")}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{t("ats.pasteHint")}</p>
+                  <p className="font-medium">
+                    {uploading ? t("ats.uploading") : t("ats.paste")}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {t("ats.pasteHint")}
+                  </p>
                 </div>
+                {!uploading && (
+                  <Button variant="outline" size="sm" type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                    {t("ats.uploadBtn")}
+                  </Button>
+                )}
+                {fileName && (
+                  <p className="text-sm text-success font-medium flex items-center gap-1.5">
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    {t("ats.fileLoaded")} {fileName}
+                  </p>
+                )}
+                {uploadError && (
+                  <p className="text-sm text-destructive font-medium flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    {uploadError}
+                  </p>
+                )}
               </div>
             </div>
+
+            <p className="text-xs text-muted-foreground text-center">{t("ats.or")}</p>
 
             <Textarea
               placeholder={t("ats.placeholder")}
@@ -68,7 +179,7 @@ export default function ATSParser() {
               className="min-h-[200px] text-sm"
             />
 
-            <Button onClick={handleSimulate} disabled={!resumeText.trim()} className="w-full">
+            <Button onClick={handleSimulate} disabled={!resumeText.trim() || uploading} className="w-full">
               <FileSearch className="h-4 w-4 mr-2" />
               {t("ats.simulate")}
             </Button>
@@ -109,7 +220,7 @@ export default function ATSParser() {
               </div>
             </div>
 
-            <Button variant="outline" onClick={() => { setParsed(false); setResumeText(""); }}>
+            <Button variant="outline" onClick={() => { setParsed(false); setResumeText(""); setFileName(""); }}>
               {t("ats.tryAnother")}
             </Button>
           </div>
