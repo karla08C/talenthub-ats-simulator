@@ -6,13 +6,13 @@ export const translations = {
     "layout.subtitle": "Otimize seu currículo para sistemas ATS",
     "sidebar.tools": "Ferramentas",
     "sidebar.brand": "TalentHub OS",
-    "sidebar.tagline": "ATS Optimizer",
+    "sidebar.tagline": "Otimizador ATS",
 
     // Nav
-    "nav.dashboard": "Dashboard",
-    "nav.atsParser": "ATS Parser",
-    "nav.keywordMatcher": "Keyword Matcher",
-    "nav.resumeBuilder": "Resume Builder",
+    "nav.dashboard": "Painel",
+    "nav.atsParser": "Simulador ATS",
+    "nav.keywordMatcher": "Comparador de Palavras",
+    "nav.resumeBuilder": "Gerador de Currículo",
 
     // Index
     "index.welcome": "Bem-vindo ao TalentHub OS",
