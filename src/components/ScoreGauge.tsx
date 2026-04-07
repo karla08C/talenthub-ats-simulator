@@ -1,9 +1,12 @@
+import { useLanguage } from "@/i18n/LanguageContext";
+
 interface ScoreGaugeProps {
   score: number;
   size?: number;
 }
 
 export function ScoreGauge({ score, size = 160 }: ScoreGaugeProps) {
+  const { t } = useLanguage();
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
@@ -15,33 +18,19 @@ export function ScoreGauge({ score, size = 160 }: ScoreGaugeProps) {
   };
 
   const getLabel = () => {
-    if (score >= 80) return "Excelente";
-    if (score >= 50) return "Bom";
-    if (score >= 30) return "Regular";
-    return "Fraco";
+    if (score >= 80) return t("score.excellent");
+    if (score >= 50) return t("score.good");
+    if (score >= 30) return t("score.fair");
+    return t("score.weak");
   };
 
   return (
     <div className="flex flex-col items-center gap-2">
       <svg width={size} height={size} viewBox="0 0 100 100" className="transform -rotate-90">
+        <circle cx="50" cy="50" r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
         <circle
-          cx="50"
-          cy="50"
-          r={radius}
-          fill="none"
-          stroke="hsl(var(--muted))"
-          strokeWidth="8"
-        />
-        <circle
-          cx="50"
-          cy="50"
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
+          cx="50" cy="50" r={radius} fill="none" stroke="currentColor" strokeWidth="8"
+          strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset}
           className={`${getColor()} animate-score-fill transition-all duration-700`}
           style={{ "--score-offset": offset } as React.CSSProperties}
         />
