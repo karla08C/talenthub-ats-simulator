@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { useLanguage } from "@/i18n/LanguageContext";
 import {
   Sidebar,
   SidebarContent,
@@ -19,18 +20,20 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
+import type { TranslationKey } from "@/i18n/translations";
 
-const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "ATS Parser", url: "/ats-parser", icon: FileSearch },
-  { title: "Keyword Matcher", url: "/keyword-matcher", icon: Target },
-  { title: "Resume Builder", url: "/resume-builder", icon: FileText },
+const navItems: { titleKey: TranslationKey; url: string; icon: typeof LayoutDashboard }[] = [
+  { titleKey: "nav.dashboard", url: "/", icon: LayoutDashboard },
+  { titleKey: "nav.atsParser", url: "/ats-parser", icon: FileSearch },
+  { titleKey: "nav.keywordMatcher", url: "/keyword-matcher", icon: Target },
+  { titleKey: "nav.resumeBuilder", url: "/resume-builder", icon: FileText },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { t } = useLanguage();
 
   return (
     <Sidebar collapsible="icon">
@@ -42,10 +45,10 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col">
               <span className="text-sm font-bold text-sidebar-accent-foreground tracking-tight">
-                TalentHub OS
+                {t("sidebar.brand")}
               </span>
               <span className="text-[11px] text-sidebar-muted">
-                ATS Optimizer
+                {t("sidebar.tagline")}
               </span>
             </div>
           )}
@@ -55,12 +58,12 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-muted text-[11px] uppercase tracking-wider font-semibold">
-            Ferramentas
+            {t("sidebar.tools")}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.titleKey}>
                   <SidebarMenuButton asChild>
                     <NavLink
                       to={item.url}
@@ -69,7 +72,7 @@ export function AppSidebar() {
                       activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                     >
                       <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      {!collapsed && <span>{t(item.titleKey)}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
