@@ -5,7 +5,7 @@ export const translations = {
     // Layout
     "layout.subtitle": "Otimize seu currículo para sistemas ATS",
     "sidebar.tools": "Ferramentas",
-    "sidebar.brand": "TalentHub OS",
+    "sidebar.brand": "TalentHub ",
     "sidebar.tagline": "Otimizador ATS",
 
     // Nav
@@ -15,8 +15,8 @@ export const translations = {
     "nav.resumeBuilder": "Gerador de Currículo",
 
     // Index
-    "index.welcome": "Bem-vindo ao TalentHub OS",
-    "index.subtitle": "Otimize seu currículo para passar nos filtros da Gupy, Solides e Indeed.",
+    "index.welcome": "Bem-vindo ao TalentHub ",
+    "index.subtitle": "Otimize seu currículo para passar nos filtros de plataforma de vagas que utilizam ATS.",
     "index.stat1.label": "Taxa ATS média",
     "index.stat1.trend": "+12%",
     "index.stat2.label": "Palavras-chave ideais",
@@ -30,8 +30,8 @@ export const translations = {
     "index.tip.title": "💡 Dica de Especialista",
     "index.tip.text": "Plataformas como a Gupy priorizam currículos de coluna única para evitar erros de leitura. Evite gráficos, tabelas e ícones — o parser ATS não consegue interpretá-los e seu currículo pode ser descartado automaticamente.",
 
-    // ATS Parser
-    "ats.title": "ATS Parser Simulator",
+    // Simulador ATS
+    "ats.title": "Simulador de Leitura de ATS",
     "ats.subtitle": "Veja como um robô ATS lê seu currículo e identifique problemas.",
     "ats.tip": "Sistemas ATS como Gupy, Solides e Indeed extraem apenas texto bruto. Formatação rica, colunas duplas e gráficos são ignorados ou causam erros.",
     "ats.paste": "Envie seu currículo ou cole o texto abaixo",
@@ -52,8 +52,8 @@ export const translations = {
     "ats.warn3": "Cabeçalho com imagem — pode ocultar informações de contato.",
     "ats.warn4": "Seções bem definidas: Experiência, Formação, Habilidades.",
 
-    // Keyword Matcher
-    "kw.title": "Keyword Matcher",
+    // Compatibilidade de Palavras-chave
+    "kw.title": "Compatibilidade de Palavras-chave",
     "kw.subtitle": "Compare seu currículo com a descrição da vaga e encontre gaps.",
     "kw.tip": "A Gupy utiliza NLP para ranquear candidatos. Quanto mais palavras-chave da vaga estiverem no seu currículo, maior sua pontuação.",
     "kw.jobLabel": "Descrição da Vaga",
@@ -69,8 +69,8 @@ export const translations = {
     "kw.allPresent": "Todas as palavras-chave estão presentes! 🎉",
     "kw.newAnalysis": "Nova análise",
 
-    // Resume Builder
-    "rb.title": "Smart Resume Builder",
+    // Construção Inteligente de Currículos
+    "rb.title": "Construção Inteligente de Currículos",
     "rb.subtitle": "Construa um currículo otimizado para ATS usando o método STAR.",
     "rb.tip": "Currículos em coluna única com seções claras têm 40% mais chance de passar nos filtros ATS.",
     "rb.personalData": "Dados Pessoais",
