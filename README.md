@@ -88,4 +88,4 @@ npm run dev
 ## Demonstração
 
 🔗 Acesse a aplicação:
-https://SEU-LINK-VERCEL.vercel.app
+https://talent-hub-otimizador-curriculos-4onj2gfk9.vercel.app/
