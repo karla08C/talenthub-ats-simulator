@@ -1,33 +1,86 @@
-# TalentHub 
+# TalentHub
 
-O **TalentHub** é um **Simulador de Leitura de ATS** (Analisador e Otimizador de Currículos) focado na experiência do candidato. Ele foi desenvolvido para ajudar profissionais a testarem se os seus currículos em formato PDF estão prontos para passar sem barreiras pelos robôs e sistemas automáticos de triagem de vagas das empresas (como Gupy, indeed, Workday, etc.).
+## Simulador de ATS para Otimização de Currículos
 
----
+O TalentHub é uma aplicação desenvolvida para simular o comportamento dos principais sistemas ATS (Applicant Tracking Systems) utilizados em processos seletivos modernos.
 
-##  Principais Funcionalidades
+A ferramenta permite que candidatos analisem seus currículos em formato PDF antes de se candidatarem a vagas, identificando possíveis problemas de leitura, compatibilidade e aderência aos requisitos da posição desejada.
 
-* **Extração Nativa de PDF (`pdfjsLib`):** Faz a varredura completa do documento simulando o comportamento exato dos robôs das empresas.
-* **Diagnóstico de Leitura:** Avalia a legibilidade do arquivo para garantir que as informações cruciais não fiquem ocultas por falhas de design ou formatação complexa.
-* **Keyword Match ():**  valida a compatibilidade de palavras-chave do currículo contra os requisitos específicos da vaga.
+## Problema Resolvido
 
----
+Muitos candidatos possuem experiência e qualificações adequadas para uma vaga, mas são eliminados ainda na etapa inicial devido a problemas de formatação ou ausência de palavras-chave relevantes para os sistemas automatizados de triagem.
+
+O TalentHub foi criado para reduzir esse problema, oferecendo uma análise prévia do currículo sob a perspectiva dos robôs de recrutamento.
+
+## Funcionalidades
+
+### Extração Inteligente de PDF
+
+* Leitura nativa utilizando PDF.js
+* Simulação da interpretação realizada por ATS
+* Identificação de falhas estruturais de leitura
+
+### Diagnóstico de Compatibilidade
+
+* Avaliação da legibilidade do documento
+* Identificação de elementos que podem dificultar a interpretação automática
+* Recomendações de melhoria
+
+### Análise de Palavras-Chave
+
+* Comparação entre currículo e descrição da vaga
+* Identificação de competências ausentes
+* Cálculo de aderência ao perfil desejado
 
 ## Tecnologias Utilizadas
 
-Este projeto foi construído utilizando uma stack moderna de engenharia de software voltada para performance e componentização:
+### Frontend
 
-* **React** + **TypeScript**
-* **Vite** (Build Tool e Empacotador ultrarrápido)
-* **Tailwind CSS** (Estilização Utilitária)
-* **shadcn/ui** (Biblioteca de Componentes Acessíveis)
-* **PDF.js (pdfjs-dist)** (Biblioteca de Parsing e processamento de arquivos PDF)
+* React
+* TypeScript
+* Vite
+* Tailwind CSS
+* shadcn/ui
 
----
+### Processamento de Documentos
 
-##  Como Executar o Projeto Localmente
+* PDF.js (pdfjs-dist)
 
-Se você deseja rodar ou clonar este ecossistema na sua máquina local, certifique-se de ter o **Node.js** e o **npm** instalados.
+## Competências Demonstradas
 
-1. **Clone o repositório:**
+Este projeto demonstra conhecimentos em:
+
+* Desenvolvimento Frontend Moderno
+* TypeScript
+* Componentização
+* Manipulação de Arquivos
+* Processamento de Dados
+* Experiência do Usuário (UX)
+* Recrutamento Tech
+* Análise de Currículos
+* Integração de Bibliotecas Externas
+
+## Contexto de Negócio
+
+O TalentHub foi idealizado a partir da observação de desafios recorrentes enfrentados por profissionais durante processos seletivos em plataformas como Gupy, Workday e Indeed.
+
+A proposta é aproximar tecnologia e empregabilidade, oferecendo uma ferramenta prática para aumentar a visibilidade dos candidatos e melhorar sua preparação para processos seletivos automatizados.
+
+## Próximas Evoluções
+
+* Sugestões automáticas de otimização
+* Geração de relatórios personalizados
+* Integração com Inteligência Artificial
+* Benchmark de currículos por área profissional
+
+## Como Executar
+
 ```bash
-   git clone [https://github.com/SEU_USUARIO/job-jam-boost.git](https://github.com/SEU_USUARIO/job-jam-boost.git)
+git clone https://github.com/SEU_USUARIO/job-jam-boost.git
+
+cd job-jam-boost
+
+npm install
+
+npm run dev
+```
