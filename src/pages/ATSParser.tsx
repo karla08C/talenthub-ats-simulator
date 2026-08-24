@@ -13,6 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import type { TranslationKey } from "@/i18n/translations";
+import type { PDFTextItem } from "@/lib/pdf.types";
 import * as pdfjsLib from "pdfjs-dist";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -27,8 +28,9 @@ async function extractTextFromPDF(file: File): Promise<string> {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const text = content.items
-      .map((item: any) => item.str)
+    // Properly cast to PDFTextItem[] instead of using any
+    const text = (content.items as PDFTextItem[])
+      .map((item) => item.str)
       .join(" ");
     pages.push(text);
   }
