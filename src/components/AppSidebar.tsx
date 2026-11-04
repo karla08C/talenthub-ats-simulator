@@ -4,6 +4,7 @@ import {
   Target,
   FileText,
   Sparkles,
+  Compass,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -27,6 +28,7 @@ const navItems: { titleKey: TranslationKey; url: string; icon: typeof LayoutDash
   { titleKey: "nav.atsParser", url: "/ats-parser", icon: FileSearch },
   { titleKey: "nav.keywordMatcher", url: "/keyword-matcher", icon: Target },
   { titleKey: "nav.resumeBuilder", url: "/resume-builder", icon: FileText },
+  { titleKey: "nav.careerCopilot", url: "/career-copilot", icon: Compass },
 ];
 
 export function AppSidebar() {

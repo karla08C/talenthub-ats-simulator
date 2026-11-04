@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import ATSParser from "./pages/ATSParser";
 import KeywordMatcher from "./pages/KeywordMatcher";
 import ResumeBuilder from "./pages/ResumeBuilder";
+import CareerCopilot from "./pages/CareerCopilot";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/ats-parser" element={<ATSParser />} />
             <Route path="/keyword-matcher" element={<KeywordMatcher />} />
             <Route path="/resume-builder" element={<ResumeBuilder />} />
+            <Route path="/career-copilot" element={<CareerCopilot />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
