@@ -15,8 +15,17 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
+        palette: {
+          orchid: "#B04EB8",
+          blush: "#FFEBE8",
+          amber: "#E6AF00",
+          mint: "#D7F7E1",
+          cobalt: "#1D3ECF",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

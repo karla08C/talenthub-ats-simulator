@@ -446,6 +446,79 @@ CERTIFICAÇÕES & CURSOS
     expect(evaluation.starBreakdown.result).toBe(true);
     expect(evaluation.starBreakdown.quantifiedMetric).toBe(true);
     expect(evaluation.mentionedKeywords).toContain("Power BI");
+    expect(evaluation.estimatedWpm).toBeGreaterThan(0);
+    expect(evaluation.totalFillers).toBe(0);
+  });
+
+  it("cleans noisy Ctrl+A LinkedIn/Gupy text, detects verbal fillers & WPM, and applies 1-click optimizations into Builder draft", async () => {
+    const {
+      cleanNoisyJobPageText,
+      applyOptimizationsToBuilderDraft,
+      evaluateInterviewAnswer,
+    } = await import("@/lib/careerCopilotEngine");
+
+    const noisyPaste = `Pular para o conteúdo principal
+Início
+Minha rede
+Vagas
+Notificações
+Engenheiro de Software Full Stack Sênior
+Nubank · São Paulo, SP
+Candidatar-se
+Salvar
+Sobre a vaga
+Requisitos: TypeScript, React, Node.js, Kubernetes e GraphQL.
+Mostrar mais
+Denunciar esta vaga
+LinkedIn Corporation`;
+
+    const cleaned = cleanNoisyJobPageText(noisyPaste);
+    expect(cleaned.removedLinesCount).toBeGreaterThanOrEqual(6);
+    expect(cleaned.cleanedText).not.toContain("Pular para o conteúdo");
+    expect(cleaned.cleanedText).toContain("Kubernetes");
+    expect(cleaned.detectedRole).toContain("Engenheiro de Software");
+
+    const fillerEval = evaluateInterviewAnswer({
+      question: {
+        id: "q2",
+        type: "behavioral_star",
+        skillOrTopic: "Método STAR",
+        questionPt: "Conte sobre um desafio",
+        questionEn: "Tell me about a challenge",
+        tipPt: "Use STAR",
+        tipEn: "Use STAR",
+      },
+      transcript:
+        "Então, tipo, no projeto passado nós tínhamos um problema, né, e basicamente tipo eu implementei um cache Redis reduzindo a latência em 35%.",
+      targetSkills: ["Redis", "Node.js"],
+      candidateRole: "Desenvolvedor Backend",
+      recordingSeconds: 12,
+    });
+
+    expect(fillerEval.totalFillers).toBeGreaterThanOrEqual(3);
+    expect(fillerEval.estimatedWpm).toBeGreaterThan(60);
+
+    const updatedDraft = applyOptimizationsToBuilderDraft({
+      existingDraft: null,
+      fallbackResumeText: `Carla Mendes\ncarla@email.com\nHABILIDADES\nTypeScript, React\nEXPERIÊNCIA\nTechCorp — Engenheira (2022 - Atual)\n• Desenvolvi APIs em Node.js.`,
+      improvedBullets: [
+        {
+          id: "b1",
+          originalBullet: "• Desenvolvi APIs em Node.js.",
+          improvedBullet:
+            "• Estruturei e otimizei APIs em Node.js integrando GraphQL, reduzindo o tempo de processamento em 35%.",
+          injectedSkill: "GraphQL",
+          reasonPt: "Teste",
+          reasonEn: "Test",
+        },
+      ],
+      skillsToAdd: ["Kubernetes"],
+    });
+
+    expect(updatedDraft.personalInfo.skills).toContain("GraphQL");
+    expect(updatedDraft.personalInfo.skills).toContain("Kubernetes");
+    expect(updatedDraft.experiences[0].action).toContain("GraphQL");
+    expect(updatedDraft.experiences[0].result).toContain("35%");
   });
 });
 

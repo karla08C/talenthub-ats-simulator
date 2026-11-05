@@ -72,17 +72,17 @@ HABILIDADES TÉCNICAS
 TypeScript, JavaScript, React, Next.js, Node.js, PostgreSQL, Docker, Kubernetes, AWS, Git, Testes Automatizados, Scrum.
 
 EXPERIÊNCIA PROFISSIONAL
-TechCorp Solutions — Engenheira de Software Sênior (Jan 2023 - Atual)
+TechCorp Solutions | Engenheira de Software Sênior (Jan 2023 - Atual)
 • Liderei a migração do monolito legado para microsserviços em Node.js e TypeScript, atendendo 250 mil usuários ativos.
 • Otimizei consultas em PostgreSQL e implementei cache com Redis, reduzindo a latência da API em 42%.
 • Automatizei pipelines de CI/CD no GitHub Actions, diminuindo o tempo de deploy de 45 minutos para 8 minutos.
 
-InovaWeb Digital — Desenvolvedora Full Stack Pleno (Mar 2020 - Dez 2022)
+InovaWeb Digital | Desenvolvedora Full Stack Pleno (Mar 2020 - Dez 2022)
 • Desenvolvi interfaces acessíveis em React e Tailwind CSS, aumentando a conversão do checkout em 18%.
 • Implementei testes automatizados com Vitest e Playwright, elevando a cobertura de código para 85%.
 
 FORMAÇÃO ACADÊMICA
-Universidade de São Paulo (USP) — Bacharelado em Ciência da Computação (2016 - 2020)`;
+Universidade de São Paulo (USP) | Bacharelado em Ciência da Computação (2016 - 2020)`;
 
 const SAMPLE_RESUME_EN = `Carla Mendes
 carla.mendes@email.com | +1 (555) 234-5678 | linkedin.com/in/carlamendes | github.com/carlamendes
@@ -94,17 +94,17 @@ TECHNICAL SKILLS
 TypeScript, JavaScript, React, Next.js, Node.js, PostgreSQL, Docker, Kubernetes, AWS, Git, Unit Testing, Agile Scrum.
 
 PROFESSIONAL EXPERIENCE
-TechCorp Solutions — Senior Software Engineer (Jan 2023 - Present)
+TechCorp Solutions | Senior Software Engineer (Jan 2023 - Present)
 • Led the migration of a legacy monolith to Node.js and TypeScript microservices serving 250k+ active users.
 • Optimized PostgreSQL queries and implemented Redis caching, reducing API latency by 42%.
 • Automated CI/CD pipelines with GitHub Actions, cutting deployment time from 45 minutes to 8 minutes.
 
-InovaWeb Digital — Full Stack Developer (Mar 2020 - Dec 2022)
+InovaWeb Digital | Full Stack Developer (Mar 2020 - Dec 2022)
 • Developed responsive interfaces in React and Tailwind CSS, increasing checkout conversion by 18%.
 • Implemented automated tests using Vitest and Playwright, raising test coverage to 85%.
 
 EDUCATION
-University of Sao Paulo (USP) — B.S. in Computer Science (2016 - 2020)`;
+University of Sao Paulo (USP) | B.S. in Computer Science (2016 - 2020)`;
 
 const SECTION_HEADING_TEST =
   /^(?:RESUMO(?:\s+PROFISSIONAL)?|SOBRE(?:\s+MIM)?|PERFIL(?:\s+PROFISSIONAL)?|OBJETIVO|PROFESSIONAL\s+SUMMARY|SUMMARY|PROFILE|EXPERI[ÊE]NCIA(?:S)?(?:\s+PROFISSIONA(?:L|IS))?|HIST[ÓO]RICO\s+PROFISSIONAL|PROFESSIONAL\s+EXPERIENCE|WORK\s+EXPERIENCE|EXPERIENCE|FORMA[ÇC][ÃA]O(?:\s+ACAD[ÊE]MICA)?|EDUCA[ÇC][ÃA]O|EDUCATION|HABILIDADES(?:\s+T[ÉE]CNICAS)?|COMPET[ÊE]NCIAS(?:\s+T[ÉE]CNICAS)?|TECNOLOGIAS|SKILLS|TECHNICAL\s+SKILLS|IDIOMAS|LANGUAGES|(?:CERTIFICA[ÇC][ÕO]ES|CURSOS)(?:\s+(?:E|&|\/)\s+(?:CERTIFICA[ÇC][ÕO]ES|CURSOS)|\s+COMPLEMENTARES)?|PROJETOS|CERTIFICATIONS|PROJECTS)$/i;
@@ -173,6 +173,9 @@ export default function ATSParser() {
   const [uploadError, setUploadError] = useState("");
   const [formattedFeedback, setFormattedFeedback] = useState(false);
   const [copiedFeedback, setCopiedFeedback] = useState(false);
+  const [findingFilter, setFindingFilter] = useState<"all" | "issues" | "ok">(
+    "all"
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const textStats = useMemo(() => {
@@ -319,33 +322,53 @@ export default function ATSParser() {
   return (
     <AppLayout>
       <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="space-y-1">
-            <ExpertTip tip={t("ats.tip")}>
-              <h1 className="text-2xl font-bold tracking-tight">
-                {t("ats.title")}
-              </h1>
-            </ExpertTip>
-            <p className="text-muted-foreground">{t("ats.subtitle")}</p>
+        {/* Studio Page Header Banner */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-card">
+          <div
+            className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-15 blur-2xl"
+            style={{
+              background: "linear-gradient(135deg, #1D3ECF 0%, #B04EB8 100%)",
+            }}
+          />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#1D3ECF]/12 px-2.5 py-0.5 text-[11px] font-mono font-semibold text-primary">
+                <span>ETAPA 01 / 04</span>
+                <span>·</span>
+                <span>
+                  {locale === "pt"
+                    ? "AUDITORIA ESTRUTURAL"
+                    : "STRUCTURAL AUDIT"}
+                </span>
+              </div>
+              <ExpertTip tip={t("ats.tip")}>
+                <h1 className="text-2xl sm:text-3xl font-display font-extrabold tracking-tight">
+                  {t("ats.title")}
+                </h1>
+              </ExpertTip>
+              <p className="text-sm text-muted-foreground max-w-2xl">
+                {t("ats.subtitle")}
+              </p>
+            </div>
+            {!analysisResult && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleLoadSample}
+                className="shrink-0 self-start border border-border/70"
+              >
+                <Sparkles className="h-3.5 w-3.5 mr-1.5 text-[#B04EB8]" />
+                {t("ats.loadSample")}
+              </Button>
+            )}
           </div>
-          {!analysisResult && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleLoadSample}
-              className="shrink-0 self-start"
-            >
-              <Sparkles className="h-3.5 w-3.5 mr-1.5 text-primary" />
-              {t("ats.loadSample")}
-            </Button>
-          )}
         </div>
 
         {!analysisResult ? (
           <div className="space-y-4">
             {/* Upload area with drag & drop */}
             <div
-              className="border-2 border-dashed rounded-xl p-8 text-center bg-card hover:border-primary/50 hover:bg-primary/[0.02] transition-all cursor-pointer group"
+              className="border-2 border-dashed border-border/90 rounded-2xl p-8 text-center bg-card hover:border-[#B04EB8]/60 hover:bg-[#B04EB8]/[0.02] transition-all cursor-pointer group shadow-card"
               onClick={() => fileInputRef.current?.click()}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
@@ -357,33 +380,47 @@ export default function ATSParser() {
                 className="hidden"
                 onChange={handleFileInput}
               />
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-14 h-14 rounded-full bg-primary/10 group-hover:bg-primary/15 flex items-center justify-center transition-colors">
+              <div className="flex flex-col items-center gap-3.5">
+                <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
                   {uploading ? (
-                    <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                    <Loader2 className="h-6 w-6 text-white animate-spin" />
                   ) : (
-                    <Upload className="h-6 w-6 text-primary animate-pulse-soft" />
+                    <Upload className="h-6 w-6 text-white" />
                   )}
                 </div>
                 <div>
-                  <p className="font-semibold text-base">
+                  <p className="font-display font-bold text-base">
                     {uploading ? t("ats.uploading") : t("ats.paste")}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     {t("ats.pasteHint")}
                   </p>
                 </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono text-muted-foreground">
+                  <span className="px-2 py-0.5 rounded-md bg-secondary/70 border border-border/60">
+                    PDF Vetorial
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-secondary/70 border border-border/60">
+                    TXT UTF-8
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md palette-pill-mint">
+                    {locale === "pt"
+                      ? "Reconstrução Linear Automática"
+                      : "Auto Linear Reflow"}
+                  </span>
+                </div>
                 {!uploading && (
                   <Button
                     variant="outline"
                     size="sm"
                     type="button"
+                    className="mt-1"
                     onClick={(e) => {
                       e.stopPropagation();
                       fileInputRef.current?.click();
                     }}
                   >
-                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                    <Upload className="h-3.5 w-3.5 mr-1.5 text-primary" />
                     {t("ats.uploadBtn")}
                   </Button>
                 )}
@@ -399,7 +436,12 @@ export default function ATSParser() {
             {/* Smart Editor Card with Formatting Toolbar & PDF Metadata */}
             <div className="bg-card border rounded-xl shadow-card overflow-hidden">
               <div className="px-4 py-3 bg-secondary/40 border-b flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex items-center gap-1.5 mr-1">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#FFEBE8] border border-[#B04EB8]/30" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#E6AF00]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#D7F7E1] border border-emerald-500/30" />
+                  </div>
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                     <FileText className="h-4 w-4 text-primary" />
                     <span>
@@ -724,46 +766,108 @@ export default function ATSParser() {
               </div>
             </div>
 
-            {/* Dynamic Diagnostic Findings */}
-            <div className="space-y-3">
-              <h2 className="text-lg font-semibold">{t("ats.diagnosis")}</h2>
+            {/* Dynamic Diagnostic Findings with Interactive Filter */}
+            <div className="bg-card rounded-2xl p-5 sm:p-6 border border-border/80 shadow-card space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h2 className="text-lg font-display font-bold">
+                  {t("ats.diagnosis")}
+                </h2>
+                <div className="flex items-center gap-1.5 bg-secondary/60 p-1 rounded-xl border border-border/70 self-start">
+                  {(
+                    [
+                      {
+                        key: "all",
+                        labelPt: `Todos (${analysisResult.findings.length})`,
+                        labelEn: `All (${analysisResult.findings.length})`,
+                      },
+                      {
+                        key: "issues",
+                        labelPt: `Ajustes (${
+                          analysisResult.findings.filter(
+                            (f) => f.severity !== "success"
+                          ).length
+                        })`,
+                        labelEn: `Issues (${
+                          analysisResult.findings.filter(
+                            (f) => f.severity !== "success"
+                          ).length
+                        })`,
+                      },
+                      {
+                        key: "ok",
+                        labelPt: `Aprovados (${
+                          analysisResult.findings.filter(
+                            (f) => f.severity === "success"
+                          ).length
+                        })`,
+                        labelEn: `Passed (${
+                          analysisResult.findings.filter(
+                            (f) => f.severity === "success"
+                          ).length
+                        })`,
+                      },
+                    ] as const
+                  ).map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setFindingFilter(tab.key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                        findingFilter === tab.key
+                          ? "gradient-primary text-white shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {locale === "pt" ? tab.labelPt : tab.labelEn}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid gap-2.5">
-                {analysisResult.findings.map((f) => (
-                  <div
-                    key={f.id}
-                    className={`flex items-start gap-3 p-3.5 rounded-lg border ${
-                      f.severity === "error"
-                        ? "bg-destructive/5 border-destructive/25"
-                        : f.severity === "warning"
-                        ? "bg-warning/5 border-warning/25"
-                        : "bg-success/5 border-success/25"
-                    }`}
-                  >
-                    {f.severity === "error" ? (
-                      <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                    ) : f.severity === "warning" ? (
-                      <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                    ) : (
-                      <CheckCircle className="h-4 w-4 text-success shrink-0 mt-0.5" />
-                    )}
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-semibold">
-                        {locale === "pt" ? f.titlePt : f.titleEn}
-                      </p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {locale === "pt" ? f.descPt : f.descEn}
-                      </p>
+                {analysisResult.findings
+                  .filter((f) => {
+                    if (findingFilter === "issues")
+                      return f.severity !== "success";
+                    if (findingFilter === "ok") return f.severity === "success";
+                    return true;
+                  })
+                  .map((f) => (
+                    <div
+                      key={f.id}
+                      className={`flex items-start gap-3 p-3.5 rounded-xl border ${
+                        f.severity === "error"
+                          ? "bg-destructive/5 border-destructive/25"
+                          : f.severity === "warning"
+                          ? "bg-[#E6AF00]/10 border-[#E6AF00]/30"
+                          : "bg-success/5 border-success/25"
+                      }`}
+                    >
+                      {f.severity === "error" ? (
+                        <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                      ) : f.severity === "warning" ? (
+                        <AlertTriangle className="h-4 w-4 text-[#E6AF00] shrink-0 mt-0.5" />
+                      ) : (
+                        <CheckCircle className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                      )}
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-semibold">
+                          {locale === "pt" ? f.titlePt : f.titleEn}
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {locale === "pt" ? f.descPt : f.descEn}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
 
             {/* Interactive ATS Document X-Ray & Editable Formatted View */}
-            <div className="bg-card rounded-xl p-5 border shadow-card space-y-4">
+            <div className="bg-card rounded-2xl p-5 sm:p-6 border border-border/80 shadow-card space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <ExpertTip tip={t("ats.rawTip")}>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <h2 className="text-lg font-display font-bold flex items-center gap-2">
                     <FileText className="h-5 w-5 text-primary" />
                     {t("ats.rawTitle")}
                   </h2>
@@ -793,67 +897,78 @@ export default function ATSParser() {
                   <TabsTrigger value="edit" className="gap-1.5 text-xs sm:text-sm">
                     <Edit3 className="h-3.5 w-3.5" />
                     {locale === "pt"
-                      ? "Editar Texto & Recalcular"
+                      ? "Editar Texto e Recalcular"
                       : "Edit Text & Recalculate"}
                   </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="xray">
-                  <div className="bg-secondary/30 rounded-xl p-5 border max-h-[420px] overflow-auto space-y-2 text-sm leading-relaxed">
-                    {analysisResult.rawText ? (
-                      analysisResult.rawText.split("\n").map((line, i) => {
-                        const trimmed = line.trim();
-                        if (!trimmed) {
-                          return <div key={i} className="h-2" />;
-                        }
-                        if (SECTION_HEADING_TEST.test(trimmed)) {
-                          return (
-                            <div
-                              key={i}
-                              className="pt-2 pb-1 border-b border-primary/20 flex items-center justify-between"
-                            >
-                              <span className="font-bold text-xs tracking-wider uppercase text-primary">
-                                {trimmed}
-                              </span>
-                              <Badge
-                                variant="secondary"
-                                className="text-[10px] h-4 px-1.5"
+                  <div className="rounded-xl border border-border/80 overflow-hidden bg-secondary/25">
+                    <div className="px-4 py-2 bg-secondary/60 border-b border-border/70 flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#FFEBE8] border border-[#B04EB8]/30" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#E6AF00]" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#D7F7E1] border border-emerald-500/30" />
+                        <span className="ml-2">ats-linear-parser.log</span>
+                      </div>
+                      <span>UTF-8 · LINEAR STREAM</span>
+                    </div>
+                    <div className="p-5 max-h-[420px] overflow-auto space-y-2 text-sm leading-relaxed">
+                      {analysisResult.rawText ? (
+                        analysisResult.rawText.split("\n").map((line, i) => {
+                          const trimmed = line.trim();
+                          if (!trimmed) {
+                            return <div key={i} className="h-2" />;
+                          }
+                          if (SECTION_HEADING_TEST.test(trimmed)) {
+                            return (
+                              <div
+                                key={i}
+                                className="pt-2 pb-1 border-b border-primary/20 flex items-center justify-between"
                               >
-                                {locale === "pt"
-                                  ? "Seção Mapeada"
-                                  : "Mapped Section"}
-                              </Badge>
-                            </div>
-                          );
-                        }
-                        if (trimmed.startsWith("•")) {
+                                <span className="font-display font-bold text-xs tracking-wider uppercase text-primary">
+                                  {trimmed}
+                                </span>
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] font-mono h-4 px-1.5 palette-pill-mint"
+                                >
+                                  {locale === "pt"
+                                    ? "Seção Mapeada"
+                                    : "Mapped Section"}
+                                </Badge>
+                              </div>
+                            );
+                          }
+                          if (trimmed.startsWith("•")) {
+                            return (
+                              <div
+                                key={i}
+                                className="pl-3 py-1 border-l-2 border-[#B04EB8]/40 text-foreground/90"
+                              >
+                                {renderHighlightedLine(trimmed)}
+                              </div>
+                            );
+                          }
                           return (
                             <div
                               key={i}
-                              className="pl-3 py-1 border-l-2 border-primary/20 text-foreground/90"
+                              className={
+                                i === 0
+                                  ? "font-display font-bold text-base text-foreground"
+                                  : "text-foreground/90"
+                              }
                             >
                               {renderHighlightedLine(trimmed)}
                             </div>
                           );
-                        }
-                        return (
-                          <div
-                            key={i}
-                            className={
-                              i === 0
-                                ? "font-bold text-base text-foreground"
-                                : "text-foreground/90"
-                            }
-                          >
-                            {renderHighlightedLine(trimmed)}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <span className="text-muted-foreground italic">
-                        [Nenhum texto legível extraído]
-                      </span>
-                    )}
+                        })
+                      ) : (
+                        <span className="text-muted-foreground italic">
+                          [Nenhum texto legível extraído]
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </TabsContent>
 

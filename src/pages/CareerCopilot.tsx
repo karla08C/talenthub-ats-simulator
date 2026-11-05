@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ExpertTip } from "@/components/ExpertTip";
+import { ScoreGauge } from "@/components/ScoreGauge";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +52,7 @@ export interface SavedResumeVersion {
   company: string;
   createdAt: string;
   atsScore: number;
+  baselineScore?: number;
   status: ApplicationStatus;
   draft: ResumeDraftData;
 }
@@ -122,6 +124,12 @@ export default function CareerCopilot() {
   const [newVersionName, setNewVersionName] = useState("");
   const [newCompany, setNewCompany] = useState("");
   const [loadedVersionId, setLoadedVersionId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | ApplicationStatus>(
+    "all"
+  );
+  const [mockSessionScores, setMockSessionScores] = useState<
+    Record<string, { score: number; wpm: number; fillers: number }>
+  >({});
 
   // Load context from ResumeBuilder and KeywordMatcher if available
   useEffect(() => {
@@ -212,8 +220,52 @@ export default function CareerCopilot() {
       transcript: answerTranscript,
       targetSkills: [...matchedSkills, ...missingSkills],
       candidateRole: targetRole,
+      recordingSeconds,
     });
-  }, [currentQuestion, answerTranscript, matchedSkills, missingSkills, targetRole]);
+  }, [
+    currentQuestion,
+    answerTranscript,
+    matchedSkills,
+    missingSkills,
+    targetRole,
+    recordingSeconds,
+  ]);
+
+  const mockReadinessSummary = useMemo(() => {
+    const entries = Object.values(mockSessionScores);
+    if (entries.length === 0) return null;
+    const avgScore = Math.round(
+      entries.reduce((acc, e) => acc + e.score, 0) / entries.length
+    );
+    const avgWpm = Math.round(
+      entries.reduce((acc, e) => acc + e.wpm, 0) / entries.length
+    );
+    const totalFillers = entries.reduce((acc, e) => acc + e.fillers, 0);
+    return {
+      completedCount: entries.length,
+      totalQuestions: prepAssets.questions.length,
+      avgScore,
+      avgWpm,
+      totalFillers,
+    };
+  }, [mockSessionScores, prepAssets.questions.length]);
+
+  const handleRecordMockStepAndNext = () => {
+    if (!currentQuestion || !voiceFeedback) return;
+    setMockSessionScores((prev) => ({
+      ...prev,
+      [currentQuestion.id]: {
+        score: voiceFeedback.overallScore,
+        wpm: voiceFeedback.estimatedWpm,
+        fillers: voiceFeedback.totalFillers,
+      },
+    }));
+    if (selectedQuestionIdx + 1 < prepAssets.questions.length) {
+      setSelectedQuestionIdx((idx) => idx + 1);
+      setAnswerTranscript("");
+      setRecordingSeconds(0);
+    }
+  };
 
   const handleSpeakText = (textToSpeak: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -383,6 +435,14 @@ export default function CareerCopilot() {
       newVersionName.trim() ||
       `${targetRole} (${new Date().toLocaleDateString(locale === "pt" ? "pt-BR" : "en-US")})`;
 
+    let baselineScore: number | undefined;
+    try {
+      const initialAts = sessionStorage.getItem("talenthub_last_ats_score");
+      if (initialAts) baselineScore = Number(initialAts);
+    } catch {
+      // ignore
+    }
+
     const newItem: SavedResumeVersion = {
       id:
         typeof crypto !== "undefined" && crypto.randomUUID
@@ -394,6 +454,7 @@ export default function CareerCopilot() {
         locale === "pt" ? "pt-BR" : "en-US"
       ),
       atsScore: scoreObj.totalScore,
+      baselineScore,
       status: "saved",
       draft,
     };
@@ -452,17 +513,37 @@ export default function CareerCopilot() {
   return (
     <AppLayout>
       <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
-        <div className="space-y-1">
-          <ExpertTip tip={t("cc.tip")}>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {t("cc.title")}
-            </h1>
-          </ExpertTip>
-          <p className="text-muted-foreground">{t("cc.subtitle")}</p>
+        {/* Studio Page Header Banner */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-card">
+          <div
+            className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-15 blur-2xl"
+            style={{
+              background: "linear-gradient(135deg, #1D3ECF 0%, #B04EB8 100%)",
+            }}
+          />
+          <div className="relative z-10 space-y-1.5">
+            <div className="inline-flex items-center gap-2 rounded-full palette-pill-mint border px-2.5 py-0.5 text-[11px] font-mono font-semibold">
+              <span>ETAPA 04 / 04</span>
+              <span>·</span>
+              <span>
+                {locale === "pt"
+                  ? "SIMULADOR DE VOZ IA, PITCH E KANBAN"
+                  : "AI VOICE SIMULATOR, PITCH & KANBAN"}
+              </span>
+            </div>
+            <ExpertTip tip={t("cc.tip")}>
+              <h1 className="text-2xl sm:text-3xl font-display font-extrabold tracking-tight">
+                {t("cc.title")}
+              </h1>
+            </ExpertTip>
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              {t("cc.subtitle")}
+            </p>
+          </div>
         </div>
 
         {/* Context Bar */}
-        <div className="bg-card rounded-xl p-4 border shadow-card grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+        <div className="bg-card rounded-2xl p-4 sm:p-5 border border-border/80 shadow-card grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">
               {t("cc.targetRole")}
@@ -724,36 +805,83 @@ export default function CareerCopilot() {
               {/* Real-Time AI Evaluation Dashboard */}
               {voiceFeedback && (
                 <div className="space-y-4 pt-3 border-t animate-fade-in">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-muted/25 rounded-xl p-4 border items-center">
-                    <div className="text-center border-b md:border-b-0 md:border-r pb-3 md:pb-0 md:pr-4">
-                      <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-muted/25 rounded-2xl p-5 border border-border/80 items-center">
+                    <div className="flex flex-col items-center justify-center border-b md:border-b-0 md:border-r pb-3 md:pb-0 md:pr-4">
+                      <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground font-semibold mb-2">
                         {locale === "pt"
                           ? "Score da Resposta (IA)"
                           : "Answer Score (AI)"}
                       </p>
-                      <p
-                        className={`text-4xl font-bold mt-1 ${
-                          voiceFeedback.overallScore >= 75
-                            ? "text-success"
-                            : voiceFeedback.overallScore >= 45
-                            ? "text-warning"
-                            : "text-destructive"
-                        }`}
-                      >
-                        {voiceFeedback.overallScore}%
-                      </p>
-                      <p className="text-[11px] text-muted-foreground mt-1">
+                      <ScoreGauge
+                        score={voiceFeedback.overallScore}
+                        size={125}
+                      />
+                      <p className="text-[11px] font-mono text-muted-foreground mt-2">
                         {voiceFeedback.wordCount}{" "}
-                        {locale === "pt" ? "palavras faladas" : "words spoken"}
+                        {locale === "pt" ? "palavras faladas" : "words spoken"}{" "}
+                        · {voiceFeedback.estimatedWpm} WPM
                       </p>
+                      <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+                        <span
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                            voiceFeedback.paceAssessment === "ideal"
+                              ? "palette-pill-mint"
+                              : "bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30"
+                          }`}
+                        >
+                          {voiceFeedback.paceAssessment === "ideal"
+                            ? locale === "pt"
+                              ? "Ritmo Ideal (115-160 WPM)"
+                              : "Ideal Pace (115-160 WPM)"
+                            : voiceFeedback.paceAssessment === "fast"
+                            ? locale === "pt"
+                              ? "Ritmo Acelerado"
+                              : "Fast Pace"
+                            : locale === "pt"
+                            ? "Ritmo Pausado"
+                            : "Slow Pace"}
+                        </span>
+                        <span
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                            voiceFeedback.totalFillers === 0
+                              ? "palette-pill-mint"
+                              : "palette-pill-blush"
+                          }`}
+                        >
+                          {voiceFeedback.totalFillers === 0
+                            ? locale === "pt"
+                              ? "0 vícios de linguagem"
+                              : "0 verbal fillers"
+                            : locale === "pt"
+                            ? `${voiceFeedback.totalFillers} vício(s) detectado(s)`
+                            : `${voiceFeedback.totalFillers} filler(s) detected`}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="md:col-span-2 space-y-2.5">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        {locale === "pt"
-                          ? "Raio-X Estrutural STAR em Tempo Real"
-                          : "Real-Time STAR Structure X-Ray"}
-                      </p>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          {locale === "pt"
+                            ? "Raio-X Estrutural STAR em Tempo Real"
+                            : "Real-Time STAR Structure X-Ray"}
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleRecordMockStepAndNext}
+                          className="h-7 text-xs gradient-primary text-white border-0"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                          {selectedQuestionIdx + 1 < prepAssets.questions.length
+                            ? locale === "pt"
+                              ? "Registrar Nota no Simulado e Avançar"
+                              : "Save Score to Mock Round & Next"
+                            : locale === "pt"
+                            ? "Concluir Rodada do Simulado"
+                            : "Finish Mock Interview Round"}
+                        </Button>
+                      </div>
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                         {[
                           {
@@ -888,6 +1016,59 @@ export default function CareerCopilot() {
                         ? voiceFeedback.modelAnswerPt
                         : voiceFeedback.modelAnswerEn}
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Consolidated Mock Interview Readiness Report */}
+              {mockReadinessSummary && (
+                <div className="rounded-2xl border border-[#B04EB8]/35 bg-card p-5 shadow-card space-y-3 animate-fade-in">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#B04EB8] font-semibold">
+                        {locale === "pt"
+                          ? "Relatório de Prontidão (Mock Interview)"
+                          : "Mock Interview Readiness Report"}
+                      </span>
+                      <h4 className="text-sm font-display font-bold">
+                        {locale === "pt"
+                          ? `${mockReadinessSummary.completedCount} de ${mockReadinessSummary.totalQuestions} perguntas avaliadas na rodada`
+                          : `${mockReadinessSummary.completedCount} of ${mockReadinessSummary.totalQuestions} questions evaluated in round`}
+                      </h4>
+                    </div>
+                    <Badge className="font-mono text-xs palette-pill-mint border">
+                      {locale === "pt"
+                        ? `Média Geral: ${mockReadinessSummary.avgScore}/100`
+                        : `Overall Avg: ${mockReadinessSummary.avgScore}/100`}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="rounded-xl bg-secondary/40 border p-3">
+                      <span className="text-muted-foreground block">
+                        {locale === "pt" ? "Nota Média STAR" : "Avg STAR Score"}
+                      </span>
+                      <span className="font-mono font-bold text-base text-primary">
+                        {mockReadinessSummary.avgScore}/100
+                      </span>
+                    </div>
+                    <div className="rounded-xl bg-secondary/40 border p-3">
+                      <span className="text-muted-foreground block">
+                        {locale === "pt" ? "Ritmo Médio" : "Average Pace"}
+                      </span>
+                      <span className="font-mono font-bold text-base">
+                        {mockReadinessSummary.avgWpm} WPM
+                      </span>
+                    </div>
+                    <div className="rounded-xl bg-secondary/40 border p-3">
+                      <span className="text-muted-foreground block">
+                        {locale === "pt"
+                          ? "Total de Vícios Verbais"
+                          : "Total Verbal Fillers"}
+                      </span>
+                      <span className="font-mono font-bold text-base">
+                        {mockReadinessSummary.totalFillers}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1080,85 +1261,133 @@ export default function CareerCopilot() {
                 {t("cc.noVersions")}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {versions.map((v) => (
-                  <div
-                    key={v.id}
-                    className="bg-card rounded-xl p-5 border shadow-card space-y-4 flex flex-col justify-between"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-bold text-base">
-                            {v.versionName}
-                          </h3>
-                          <p className="text-xs text-muted-foreground">
-                            {v.company} • {v.createdAt}
-                          </p>
-                        </div>
-                        <Badge
-                          className={
-                            v.atsScore >= 75
-                              ? "bg-success/15 text-success border-success/30"
-                              : "bg-warning/15 text-warning border-warning/30"
-                          }
+              <div className="space-y-4">
+                {/* Status Filter Bar */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {(
+                    ["all", "saved", "applied", "interview", "offer"] as const
+                  ).map((st) => (
+                    <Button
+                      key={st}
+                      type="button"
+                      size="sm"
+                      variant={statusFilter === st ? "default" : "outline"}
+                      onClick={() => setStatusFilter(st)}
+                      className="h-8 text-xs"
+                    >
+                      {st === "all"
+                        ? locale === "pt"
+                          ? `Todas (${versions.length})`
+                          : `All (${versions.length})`
+                        : `${t(`cc.status.${st}`)} (${
+                            versions.filter((v) => v.status === st).length
+                          })`}
+                    </Button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {versions
+                    .filter(
+                      (v) => statusFilter === "all" || v.status === statusFilter
+                    )
+                    .map((v) => {
+                      const delta =
+                        typeof v.baselineScore === "number"
+                          ? v.atsScore - v.baselineScore
+                          : null;
+                      return (
+                        <div
+                          key={v.id}
+                          className="bg-card rounded-xl p-5 border shadow-card space-y-4 flex flex-col justify-between"
                         >
-                          ATS Score: {v.atsScore}/100
-                        </Badge>
-                      </div>
+                          <div className="space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <h3 className="font-bold text-base">
+                                  {v.versionName}
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                  {v.company} • {v.createdAt}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end gap-1">
+                                <Badge
+                                  className={
+                                    v.atsScore >= 75
+                                      ? "bg-success/15 text-success border-success/30"
+                                      : "bg-warning/15 text-warning border-warning/30"
+                                  }
+                                >
+                                  ATS Score: {v.atsScore}/100
+                                </Badge>
+                                {delta !== null && delta > 0 && (
+                                  <span className="text-[10px] font-mono font-semibold text-success">
+                                    +{delta} pts vs. inicial ({v.baselineScore})
+                                  </span>
+                                )}
+                              </div>
+                            </div>
 
-                      {/* Status Selector */}
-                      <div className="flex flex-wrap gap-1.5 pt-2">
-                        {(
-                          ["saved", "applied", "interview", "offer"] as const
-                        ).map((st) => (
-                          <button
-                            key={st}
-                            type="button"
-                            onClick={() => handleUpdateStatus(v.id, st)}
-                            className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
-                              v.status === st
-                                ? "bg-primary text-primary-foreground border-primary font-semibold"
-                                : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
-                            }`}
-                          >
-                            {t(`cc.status.${st}`)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                            {/* Status Selector */}
+                            <div className="flex flex-wrap gap-1.5 pt-2">
+                              {(
+                                [
+                                  "saved",
+                                  "applied",
+                                  "interview",
+                                  "offer",
+                                ] as const
+                              ).map((st) => (
+                                <button
+                                  key={st}
+                                  type="button"
+                                  onClick={() => handleUpdateStatus(v.id, st)}
+                                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                                    v.status === st
+                                      ? "bg-primary text-primary-foreground border-primary font-semibold"
+                                      : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                                  }`}
+                                >
+                                  {t(`cc.status.${st}`)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteVersion(v.id)}
-                        className="text-muted-foreground hover:text-destructive h-8 px-2"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                          <div className="flex items-center justify-between pt-3 border-t">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteVersion(v.id)}
+                              className="text-muted-foreground hover:text-destructive h-8 px-2"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
 
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleLoadVersionIntoBuilder(v)}
-                        className="h-8 text-xs"
-                      >
-                        {loadedVersionId === v.id ? (
-                          <>
-                            <Check className="h-3.5 w-3.5 mr-1 text-success" />
-                            {t("cc.loadedSuccess")}
-                          </>
-                        ) : (
-                          <>
-                            {t("cc.loadIntoBuilder")}
-                            <ArrowUpRight className="h-3.5 w-3.5 ml-1" />
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleLoadVersionIntoBuilder(v)}
+                              className="h-8 text-xs"
+                            >
+                              {loadedVersionId === v.id ? (
+                                <>
+                                  <Check className="h-3.5 w-3.5 mr-1 text-success" />
+                                  {t("cc.loadedSuccess")}
+                                </>
+                              ) : (
+                                <>
+                                  {t("cc.loadIntoBuilder")}
+                                  <ArrowUpRight className="h-3.5 w-3.5 ml-1" />
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
             )}
           </TabsContent>

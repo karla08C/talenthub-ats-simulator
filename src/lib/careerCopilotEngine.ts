@@ -841,9 +841,9 @@ export function generateCareerPrepAssets(params: {
     params.topQuantifiedResult.trim() ||
     "otimização de processos críticos com ganho mensurável de eficiência e qualidade";
 
-  const elevatorPitchPt = `Olá! Sou ${name}, atuo como ${role} com foco prático em ${topMatched}. Na minha trajetória recente, liderei entregas focadas em impacto real — incluindo ${achievement}. Estou muito entusiasmado(a) com esta oportunidade porque meu domínio técnico em ${params.matchedSkills.slice(0, 3).join(" e ") || "tecnologias modernas"} conecta diretamente com os desafios da vaga, permitindo gerar valor rápido para o time desde as primeiras semanas.`;
+  const elevatorPitchPt = `Olá! Sou ${name}, atuo como ${role} com foco prático em ${topMatched}. Na minha trajetória recente, liderei entregas focadas em impacto real, incluindo ${achievement}. Estou muito entusiasmado(a) com esta oportunidade porque meu domínio técnico em ${params.matchedSkills.slice(0, 3).join(" e ") || "tecnologias modernas"} conecta diretamente com os desafios da vaga, permitindo gerar valor rápido para o time desde as primeiras semanas.`;
 
-  const elevatorPitchEn = `Hi! I'm ${name}, working as a ${role} with hands-on expertise in ${topMatched}. In my recent experience, I've focused on measurable delivery — including ${achievement}. I'm excited about this role because my background in ${params.matchedSkills.slice(0, 3).join(" and ") || "modern engineering"} directly aligns with your team's stack and goals, allowing me to contribute from day one.`;
+  const elevatorPitchEn = `Hi! I'm ${name}, working as a ${role} with hands-on expertise in ${topMatched}. In my recent experience, I've focused on measurable delivery, including ${achievement}. I'm excited about this role because my background in ${params.matchedSkills.slice(0, 3).join(" and ") || "modern engineering"} directly aligns with your team's stack and goals, allowing me to contribute from day one.`;
 
   const linkedinPitchPt = `Olá, tudo bem? Vi a oportunidade aberta para ${role} e notei uma forte sinergia com a minha stack atual (${topMatched}). Recentemente, alcancei resultados como: "${achievement}". Enviei meu currículo otimizado no processo seletivo, mas adoraria trocar uma ideia rápida caso meu perfil faça sentido para o momento do time!`;
 
@@ -1076,7 +1076,7 @@ export async function extractJobFromUrl(
   let synthesizedJob = "";
   if (locale === "pt") {
     if (isFinanceOrAdmin) {
-      synthesizedJob = `Vaga: ${roleTitle} — ${companyName} (Extraída via ${platform})
+      synthesizedJob = `Vaga: ${roleTitle} | ${companyName} (Extraída via ${platform})
 Link de origem: ${parsedUrl.href}
 
 Sobre a oportunidade:
@@ -1093,7 +1093,7 @@ Requisitos e Qualificações:
 • Domínio de Excel, Power BI, Análise de Dados, SQL e ferramentas de gestão;
 • Forte capacidade analítica, Liderança, Comunicação assertiva, Resolução de Problemas e Trabalho em Equipe.`;
     } else if (isDataOrAnalytics) {
-      synthesizedJob = `Vaga: ${roleTitle} — ${companyName} (Extraída via ${platform})
+      synthesizedJob = `Vaga: ${roleTitle} | ${companyName} (Extraída via ${platform})
 Link de origem: ${parsedUrl.href}
 
 Sobre a oportunidade:
@@ -1105,7 +1105,7 @@ Requisitos Obrigatórios:
 • Vivência com Git, metodologias ágeis (Scrum, Kanban) e acompanhamento de KPIs de negócio;
 • Excelente Comunicação para traduzir análises complexas para stakeholders e Trabalho em Equipe.`;
     } else {
-      synthesizedJob = `Vaga: ${roleTitle} — ${companyName} (Extraída via ${platform})
+      synthesizedJob = `Vaga: ${roleTitle} | ${companyName} (Extraída via ${platform})
 Link de origem: ${parsedUrl.href}
 
 Sobre a oportunidade:
@@ -1119,7 +1119,7 @@ Requisitos Técnicos e Qualificações:
 • Prática com Testes Automatizados, metodologias ágeis (Scrum, Kanban), Liderança técnica e Trabalho em Equipe.`;
     }
   } else {
-    synthesizedJob = `Role: ${roleTitle} — ${companyName} (Extracted via ${platform})
+    synthesizedJob = `Role: ${roleTitle} | ${companyName} (Extracted via ${platform})
 Source URL: ${parsedUrl.href}
 
 About the role:
@@ -1281,6 +1281,10 @@ export interface VoiceInterviewFeedback {
   mentionedKeywords: string[];
   missingKeywordsToMention: string[];
   wordCount: number;
+  estimatedWpm: number;
+  paceAssessment: "ideal" | "fast" | "slow";
+  fillerWords: { word: string; count: number }[];
+  totalFillers: number;
   strengthsPt: string[];
   strengthsEn: string[];
   improvementsPt: string[];
@@ -1289,20 +1293,62 @@ export interface VoiceInterviewFeedback {
   modelAnswerEn: string;
 }
 
+const FILLER_PATTERNS: { label: string; regex: RegExp }[] = [
+  { label: "tipo", regex: /\btipo\b/gi },
+  { label: "né", regex: /\bn[ée]\b/gi },
+  { label: "basicamente", regex: /\bbasicamente\b/gi },
+  { label: "na verdade", regex: /\bna\s+verdade\b/gi },
+  { label: "meio que", regex: /\bmeio\s+que\b/gi },
+  { label: "digamos", regex: /\bdigamos\b/gi },
+  { label: "então assim", regex: /\bent[ãa]o\s+assim\b/gi },
+  { label: "like", regex: /\blike\b/gi },
+  { label: "basically", regex: /\bbasically\b/gi },
+  { label: "actually", regex: /\bactually\b/gi },
+  { label: "you know", regex: /\byou\s+know\b/gi },
+  { label: "um/uh", regex: /\b(?:um|uh|erm)\b/gi },
+];
+
 /**
  * Evaluates a candidate's spoken or typed interview response in real time using
- * STAR structural heuristics, action verb checks, metric detection, and job keyword coverage.
+ * STAR structural heuristics, action verb checks, metric detection, job keyword coverage,
+ * speaking pace (WPM), and verbal filler detection.
  */
 export function evaluateInterviewAnswer(params: {
   question: InterviewQuestionItem;
   transcript: string;
   targetSkills: string[];
   candidateRole: string;
+  recordingSeconds?: number;
 }): VoiceInterviewFeedback {
   const clean = params.transcript.trim();
   const lower = clean.toLowerCase();
   const words = clean.split(/\s+/).filter(Boolean);
   const wordCount = words.length;
+
+  // Detect filler words (vícios de linguagem)
+  const fillerWords: { word: string; count: number }[] = [];
+  let totalFillers = 0;
+  for (const fp of FILLER_PATTERNS) {
+    const matches = clean.match(fp.regex);
+    if (matches && matches.length > 0) {
+      fillerWords.push({ word: fp.label, count: matches.length });
+      totalFillers += matches.length;
+    }
+  }
+
+  // Calculate speaking pace (Words Per Minute)
+  const effectiveSeconds =
+    params.recordingSeconds && params.recordingSeconds >= 5
+      ? params.recordingSeconds
+      : Math.max(8, Math.round(wordCount / 2.25)); // ~135 WPM baseline when typed
+  const estimatedWpm =
+    wordCount > 0 ? Math.round((wordCount / effectiveSeconds) * 60) : 0;
+
+  let paceAssessment: "ideal" | "fast" | "slow" = "ideal";
+  if (params.recordingSeconds && params.recordingSeconds >= 8) {
+    if (estimatedWpm > 165) paceAssessment = "fast";
+    else if (estimatedWpm < 105) paceAssessment = "slow";
+  }
 
   const hasSituation =
     /\b(contexto|cen[áa]rio|quando|na\s+empresa|projeto|sistema|equipe|time|durante|desafio|problema|when|context|project|team|company|system)\b/i.test(
@@ -1347,6 +1393,11 @@ export function evaluateInterviewAnswer(params: {
   if (wordCount >= 30) score += 10;
   else if (wordCount >= 15) score += 5;
 
+  // Penalize slightly if excessive filler words (> 3)
+  if (totalFillers >= 3) {
+    score = Math.max(15, score - Math.min(10, totalFillers * 2));
+  }
+
   score = Math.min(100, score);
 
   const strengthsPt: string[] = [];
@@ -1384,10 +1435,10 @@ export function evaluateInterviewAnswer(params: {
 
   if (hasQuantifiedMetric) {
     strengthsPt.push(
-      "Excelente uso de métricas e números concretos para comprovar o Resultado!"
+      "Excelente uso de métricas e números concretos para comprovar o Resultado."
     );
     strengthsEn.push(
-      "Excellent use of concrete metrics and numbers to prove the Result!"
+      "Excellent use of concrete metrics and numbers to prove the Result."
     );
   } else {
     improvementsPt.push(
@@ -1418,6 +1469,21 @@ export function evaluateInterviewAnswer(params: {
     );
   }
 
+  if (totalFillers === 0 && wordCount >= 25) {
+    strengthsPt.push("Comunicação limpa, sem vícios de linguagem detectados.");
+    strengthsEn.push("Clean delivery with zero verbal fillers detected.");
+  } else if (totalFillers > 0) {
+    const fillerSummary = fillerWords
+      .map((f) => `"${f.word}" (${f.count}x)`)
+      .join(", ");
+    improvementsPt.push(
+      `Atenção aos vícios de linguagem detectados: ${fillerSummary}. Prefira pausas breves de silêncio.`
+    );
+    improvementsEn.push(
+      `Watch out for verbal fillers detected: ${fillerSummary}. Use brief silent pauses instead.`
+    );
+  }
+
   const focusSkill =
     params.question.skillOrTopic === "Método STAR"
       ? params.targetSkills[0] || "automação e análise de dados"
@@ -1439,6 +1505,10 @@ export function evaluateInterviewAnswer(params: {
     mentionedKeywords,
     missingKeywordsToMention,
     wordCount,
+    estimatedWpm,
+    paceAssessment,
+    fillerWords,
+    totalFillers,
     strengthsPt,
     strengthsEn,
     improvementsPt,
@@ -1447,4 +1517,303 @@ export function evaluateInterviewAnswer(params: {
     modelAnswerEn,
   };
 }
+
+export interface AppliedOptimizationSummary {
+  timestamp: number;
+  addedSkills: string[];
+  appliedBulletsCount: number;
+}
+
+export const LAST_APPLIED_OPTIMIZATION_KEY =
+  "talenthub_last_applied_optimization_v1";
+
+/**
+ * Safely applies an improved bullet point and/or missing skills directly into the structured
+ * ResumeBuilder draft without wiping existing structured fields.
+ */
+export function applyOptimizationsToBuilderDraft(params: {
+  existingDraft: ResumeDraftData | null;
+  fallbackResumeText: string;
+  improvedBullets?: BulletImprovementSuggestion[];
+  skillsToAdd?: string[];
+}): ResumeDraftData {
+  const baseDraft: ResumeDraftData =
+    params.existingDraft &&
+    (params.existingDraft.personalInfo?.name ||
+      params.existingDraft.experiences?.some((e) => e.company || e.role || e.action))
+      ? JSON.parse(JSON.stringify(params.existingDraft))
+      : params.fallbackResumeText.trim()
+      ? parseRawResumeToBuilderDraft(params.fallbackResumeText)
+      : {
+          personalInfo: {
+            name: "",
+            email: "",
+            phone: "",
+            linkedin: "",
+            summary: "",
+            skills: "",
+          },
+          experiences: [
+            {
+              id: createId(),
+              company: "",
+              role: "",
+              period: "",
+              situation: "",
+              task: "",
+              action: "",
+              result: "",
+            },
+          ],
+          educations: [{ id: createId(), institution: "", degree: "", period: "" }],
+        };
+
+  // 1. Merge new skills without duplicates
+  const existingSkills = baseDraft.personalInfo.skills
+    .split(/[,;\n|]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const lowerExisting = new Set(existingSkills.map((s) => s.toLowerCase()));
+
+  const allSkillsToInject = [
+    ...(params.skillsToAdd || []),
+    ...(params.improvedBullets?.map((b) => b.injectedSkill).filter(Boolean) || []),
+  ];
+
+  for (const sk of allSkillsToInject) {
+    const cleanSkill = sk.trim();
+    if (cleanSkill && !lowerExisting.has(cleanSkill.toLowerCase())) {
+      existingSkills.push(cleanSkill);
+      lowerExisting.add(cleanSkill.toLowerCase());
+    }
+  }
+  baseDraft.personalInfo.skills = existingSkills.join(", ");
+
+  // 2. Apply improved bullets into experiences (splitting Action and Result cleanly)
+  if (params.improvedBullets && params.improvedBullets.length > 0) {
+    if (baseDraft.experiences.length === 0) {
+      baseDraft.experiences.push({
+        id: createId(),
+        company: "Experiência Principal",
+        role: "Especialista",
+        period: "Recente",
+        situation: "",
+        task: "",
+        action: "",
+        result: "",
+      });
+    }
+
+    params.improvedBullets.forEach((item, idx) => {
+      const cleanOrig = item.originalBullet
+        .replace(/^[-•*▪▸◦]\s*/, "")
+        .replace(/[.]+$/, "")
+        .trim();
+      const cleanImproved = item.improvedBullet.replace(/^[-•*▪▸◦]\s*/, "").trim();
+
+      // Split improved bullet into Action and Result if it has a gerund result suffix
+      const gerundSplit = cleanImproved.match(
+        /^(.*?),?\s+((?:reduzindo|aumentando|melhorando|diminuindo|elevando|gerando|garantindo|alcançando|economizando|otimizando|atendendo|reducing|increasing|improving|cutting|saving|achieving|serving)\s+.*)$/i
+      );
+
+      const actionSegment = gerundSplit ? `${gerundSplit[1].trim()}.` : cleanImproved;
+      const resultSegment = gerundSplit
+        ? `${gerundSplit[2].trim().charAt(0).toUpperCase()}${gerundSplit[2].trim().slice(1)}`
+        : "";
+
+      // Find matching experience that contains the original bullet text, or fallback by index
+      let targetExp = baseDraft.experiences.find((exp) =>
+        [exp.situation, exp.task, exp.action, exp.result]
+          .join(" ")
+          .toLowerCase()
+          .includes(cleanOrig.slice(0, 28).toLowerCase())
+      );
+      if (!targetExp) {
+        targetExp = baseDraft.experiences[idx % baseDraft.experiences.length];
+      }
+
+      if (targetExp) {
+        if (
+          cleanOrig.length > 15 &&
+          targetExp.action.toLowerCase().includes(cleanOrig.slice(0, 25).toLowerCase())
+        ) {
+          targetExp.action = actionSegment;
+        } else if (!targetExp.action.includes(actionSegment.slice(0, 25))) {
+          targetExp.action = targetExp.action.trim()
+            ? `${targetExp.action.trim().replace(/\.$/, "")}. ${actionSegment}`
+            : actionSegment;
+        }
+
+        if (resultSegment && !targetExp.result.includes(resultSegment.slice(0, 20))) {
+          targetExp.result = targetExp.result.trim()
+            ? `${targetExp.result.trim().replace(/\.$/, "")}. ${resultSegment}`
+            : resultSegment;
+        }
+      }
+    });
+  }
+
+  return baseDraft;
+}
+
+/**
+ * Cleans a noisy Ctrl+A / Ctrl+C full-page copy from LinkedIn, Gupy, Greenhouse, or Glassdoor.
+ * Removes navigation items, footers, "mostrar mais", applicant counters, and returns clean job text + metadata.
+ */
+export function cleanNoisyJobPageText(rawText: string): {
+  cleanedText: string;
+  removedLinesCount: number;
+  detectedRole?: string;
+  detectedCompany?: string;
+} {
+  const lines = rawText.split(/\r?\n/);
+  const noiseRegex =
+    /^(?:pular para o conte[úu]do(?:\s+principal)?|skip to main content|in[íi]cio|minha rede|vagas|mensagens|notifica[çc][õo]es|eu\b|para empresas|experimente premium|candidatar-se(?:\s+simplificada)?|simplificada|salvar|salvo|compartilhar|mostrar mais|mostrar menos|show more|show less|denunciar esta vaga|report this job|vagas semelhantes|similar jobs|pessoas tamb[ée]m viram|people also viewed|sobre a linkedin|acessibilidade|central de ajuda|termos e privacidade|op[çc][õo]es de an[úu]ncios|publicidade|servi[çc]os empresariais|baixe o aplicativo|linkedin corporation.*|powered by gupy.*|pol[íi]tica de privacidade|utilizamos cookies.*|aceitar cookies|rejeitar cookies|\d+\s+candidatos?|\d+\s+applicants?|h[áa]\s+\d+\s+(?:horas?|dias?|semanas?|meses?)|\d+\s+(?:hours?|days?|weeks?)\s+ago)$/i;
+
+  const cleanedLines: string[] = [];
+  let removedLinesCount = 0;
+  let detectedRole: string | undefined;
+  let detectedCompany: string | undefined;
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.replace(/\s+/g, " ").trim();
+    if (!trimmed) continue;
+
+    if (
+      noiseRegex.test(trimmed) ||
+      trimmed.length <= 2 ||
+      /^(?:https?:\/\/[^\s]+)$/i.test(trimmed)
+    ) {
+      removedLinesCount++;
+      continue;
+    }
+
+    if (
+      !detectedRole &&
+      trimmed.length >= 6 &&
+      trimmed.length <= 75 &&
+      ROLE_KEYWORDS_REGEX.test(trimmed) &&
+      !trimmed.endsWith(".")
+    ) {
+      detectedRole = trimmed;
+    } else if (
+      detectedRole &&
+      !detectedCompany &&
+      trimmed.length >= 2 &&
+      trimmed.length <= 50 &&
+      !ROLE_KEYWORDS_REGEX.test(trimmed) &&
+      !/^(?:sobre|requisitos|responsabilidades|benef[íi]cios|descri[çc][ãa]o|about|requirements)/i.test(
+        trimmed
+      )
+    ) {
+      detectedCompany = trimmed.split("·")[0].trim();
+    }
+
+    // Deduplicate consecutive identical lines (common in LinkedIn mobile/desktop headers)
+    if (
+      cleanedLines.length > 0 &&
+      cleanedLines[cleanedLines.length - 1].toLowerCase() === trimmed.toLowerCase()
+    ) {
+      removedLinesCount++;
+      continue;
+    }
+
+    cleanedLines.push(trimmed);
+  }
+
+  return {
+    cleanedText: cleanedLines.join("\n"),
+    removedLinesCount,
+    detectedRole,
+    detectedCompany,
+  };
+}
+
+export const GEMINI_API_KEY_STORAGE = "talenthub_gemini_api_key_v1";
+
+/**
+ * Calls Google Gemini API (gemini-2.5-flash) when an optional user API key is configured,
+ * returning deeply contextualized STAR bullet rewrites for the target job.
+ */
+export async function generateBulletImprovementsWithGemini(params: {
+  apiKey: string;
+  resumeText: string;
+  jobDescription: string;
+  missingSkills: string[];
+  locale: "pt" | "en";
+}): Promise<BulletImprovementSuggestion[]> {
+  const prompt =
+    params.locale === "pt"
+      ? `Você é um especialista sênior em currículos ATS e método STAR.
+Analise o currículo abaixo e a descrição da vaga.
+Skills ausentes prioritárias da vaga: ${params.missingSkills.slice(0, 6).join(", ")}.
+Reescreva até 4 tópicos (bullets) reais do currículo para torná-los de altíssimo impacto no padrão STAR (Ação + Ferramenta da Vaga + Resultado Quantificado com métrica realista).
+Não use travessões (—).
+Retorne APENAS um JSON válido no formato:
+[{"originalBullet":"• ...","improvedBullet":"• ...","injectedSkill":"...","reasonPt":"...","reasonEn":"..."}]
+
+VAGA:
+${params.jobDescription.slice(0, 1800)}
+
+CURRÍCULO:
+${params.resumeText.slice(0, 2200)}`
+      : `You are a senior ATS Resume & STAR Method specialist.
+Analyze the resume and job description below.
+Missing target job skills: ${params.missingSkills.slice(0, 6).join(", ")}.
+Rewrite up to 4 actual resume bullets into high-impact STAR bullets (Strong Action Verb + Target Skill + Quantified Result).
+Do not use em-dashes (—).
+Return ONLY valid JSON matching:
+[{"originalBullet":"• ...","improvedBullet":"• ...","injectedSkill":"...","reasonPt":"...","reasonEn":"..."}]
+
+JOB:
+${params.jobDescription.slice(0, 1800)}
+
+RESUME:
+${params.resumeText.slice(0, 2200)}`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
+      params.apiKey.trim()
+    )}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.35,
+          responseMimeType: "application/json",
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Gemini API status ${response.status}`);
+  }
+
+  const data = await response.json();
+  const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+  const parsed = JSON.parse(rawJson) as Array<{
+    originalBullet: string;
+    improvedBullet: string;
+    injectedSkill: string;
+    reasonPt: string;
+    reasonEn: string;
+  }>;
+
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error("Empty Gemini response");
+  }
+
+  return parsed.slice(0, 4).map((item, idx) => ({
+    id: `gemini-bullet-${Date.now()}-${idx}`,
+    originalBullet: item.originalBullet || "",
+    improvedBullet: item.improvedBullet || "",
+    injectedSkill: item.injectedSkill || params.missingSkills[0] || "KPIs",
+    reasonPt: item.reasonPt || "Reescrita contextualizada via Gemini IA",
+    reasonEn: item.reasonEn || "Contextualized rewrite via Gemini AI",
+  }));
+}
+
 
