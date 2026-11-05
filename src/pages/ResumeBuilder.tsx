@@ -32,16 +32,22 @@ import {
   Eye,
   Edit3,
   ClipboardPaste,
+  BookmarkPlus,
+  LayoutTemplate,
 } from "lucide-react";
 import { ACTION_VERBS_LIST, extractAndAnalyzePDF } from "@/lib/atsEngine";
 import {
   parseRawResumeToBuilderDraft,
   autoCompleteExperienceSTAR,
+  LAST_APPLIED_OPTIMIZATION_KEY,
+  type AppliedOptimizationSummary,
 } from "@/lib/careerCopilotEngine";
 import { LAST_PARSED_RESUME_KEY } from "@/pages/ATSParser";
 import {
   LAST_MATCH_CONTEXT_KEY,
+  SAVED_VERSIONS_STORAGE_KEY,
   type LastMatchContext,
+  type SavedResumeVersion,
 } from "@/pages/CareerCopilot";
 
 export interface PersonalInfo {
@@ -250,9 +256,24 @@ export default function ResumeBuilder() {
   const [bulletStyle, setBulletStyle] = useState<"executive" | "star_labeled">(
     "executive"
   );
+  const [templateStyle, setTemplateStyle] = useState<
+    "classic" | "tech" | "executive"
+  >("classic");
   const [activeTab, setActiveTab] = useState<"edit" | "split" | "preview">(
-    "edit"
+    "split"
   );
+  const [versionSavedToast, setVersionSavedToast] = useState(false);
+  const [appliedOptBanner, setAppliedOptBanner] =
+    useState<AppliedOptimizationSummary | null>(() => {
+      try {
+        const raw = sessionStorage.getItem(LAST_APPLIED_OPTIMIZATION_KEY);
+        if (!raw) return null;
+        sessionStorage.removeItem(LAST_APPLIED_OPTIMIZATION_KEY);
+        return JSON.parse(raw) as AppliedOptimizationSummary;
+      } catch {
+        return null;
+      }
+    });
 
   const [sessionResumeText, setSessionResumeText] = useState<string | null>(
     () => {
@@ -678,7 +699,7 @@ export default function ResumeBuilder() {
     text += `${t("export.skills")}\n${skills}\n\n`;
     text += `${t("export.experience")}\n`;
     experiences.forEach((e) => {
-      text += `${e.role} — ${e.company} (${e.period})\n`;
+      text += `${e.role} | ${e.company} (${e.period})\n`;
       const bullets = getExperienceBullets(e);
       bullets.forEach((b) => {
         text += `• ${b.label ? `${b.label}: ` : ""}${b.text}\n`;
@@ -687,7 +708,7 @@ export default function ResumeBuilder() {
     });
     text += `${t("export.education")}\n`;
     educations.forEach((e) => {
-      text += `${e.degree} — ${e.institution} (${e.period})\n`;
+      text += `${e.degree} | ${e.institution} (${e.period})\n`;
     });
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -709,7 +730,7 @@ export default function ResumeBuilder() {
         return `
         <div class="item">
           <div class="item-header">
-            <strong>${e.role || "Cargo"} — ${e.company || "Empresa"}</strong>
+            <strong>${e.role || "Cargo"} | ${e.company || "Empresa"}</strong>
             <span>${e.period || ""}</span>
           </div>
           <ul>
@@ -729,7 +750,7 @@ export default function ResumeBuilder() {
       .map(
         (ed) => `
         <div class="item-header" style="margin-bottom: 6px;">
-          <div><strong>${ed.degree}</strong> — ${ed.institution}</div>
+          <div><strong>${ed.degree}</strong> | ${ed.institution}</div>
           <span>${ed.period}</span>
         </div>`
       )
@@ -737,6 +758,17 @@ export default function ResumeBuilder() {
 
     const printWindow = window.open("", "_blank", "width=850,height=950");
     if (!printWindow) return;
+
+    const accentColor =
+      templateStyle === "tech"
+        ? "#1D3ECF"
+        : templateStyle === "executive"
+        ? "#B04EB8"
+        : "#111827";
+    const fontStack =
+      templateStyle === "classic"
+        ? "Georgia, 'Times New Roman', serif"
+        : "Arial, Helvetica, sans-serif";
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -747,7 +779,7 @@ export default function ResumeBuilder() {
         <style>
           @page { size: A4; margin: 16mm 18mm; }
           body {
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: ${fontStack};
             color: #111827;
             line-height: 1.45;
             font-size: 10.5pt;
@@ -759,6 +791,7 @@ export default function ResumeBuilder() {
             margin: 0 0 4px 0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            color: ${accentColor};
           }
           .contact {
             font-size: 9.5pt;
@@ -768,7 +801,8 @@ export default function ResumeBuilder() {
           h2 {
             font-size: 11pt;
             text-transform: uppercase;
-            border-bottom: 1.5px solid #111827;
+            border-bottom: 1.5px solid ${accentColor};
+            color: ${accentColor};
             padding-bottom: 3px;
             margin: 14px 0 8px 0;
             letter-spacing: 0.5px;
@@ -809,196 +843,386 @@ export default function ResumeBuilder() {
     printWindow.document.close();
   };
 
-  const renderLivePreviewDocument = () => (
-    <div className="space-y-3">
-      {/* Preview Style Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-secondary/40 px-3.5 py-2 rounded-lg border text-xs">
-        <span className="font-medium text-muted-foreground">
-          {locale === "pt"
-            ? "Formato dos Tópicos no Documento:"
-            : "Document Bullet Format:"}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setBulletStyle("executive")}
-            className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-              bulletStyle === "executive"
-                ? "bg-primary text-primary-foreground"
-                : "hover:bg-background text-muted-foreground"
-            }`}
-          >
-            {locale === "pt"
-              ? "Bullets Executivos (Mercado)"
-              : "Executive Bullets (Standard)"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setBulletStyle("star_labeled")}
-            className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-              bulletStyle === "star_labeled"
-                ? "bg-primary text-primary-foreground"
-                : "hover:bg-background text-muted-foreground"
-            }`}
-          >
-            {locale === "pt" ? "STAR Rotulado" : "STAR Labeled"}
-          </button>
-        </div>
-      </div>
+  const pageDensityMetrics = useMemo(() => {
+    const fullText = [
+      personalInfo.name,
+      personalInfo.summary,
+      personalInfo.skills,
+      ...experiences.flatMap((e) => [
+        e.company,
+        e.role,
+        e.situation,
+        e.task,
+        e.action,
+        e.result,
+      ]),
+      ...educations.flatMap((ed) => [ed.institution, ed.degree]),
+    ]
+      .join(" ")
+      .trim();
+    const words = fullText ? fullText.split(/\s+/).length : 0;
+    const fillPercent = Math.min(125, Math.round((words / 460) * 100));
+    const status: "compact" | "ideal" | "overflow" =
+      words < 140 ? "compact" : words <= 520 ? "ideal" : "overflow";
+    return { words, fillPercent, status };
+  }, [personalInfo, experiences, educations]);
 
-      {/* A4 Sheet */}
-      <div className="bg-white text-slate-900 rounded-xl p-7 sm:p-8 shadow-card border min-h-[680px] font-sans space-y-5">
-        <div className="border-b-2 border-slate-900 pb-3">
-          <h2 className="text-2xl font-bold uppercase tracking-wide">
-            {personalInfo.name || "SEU NOME COMPLETO"}
-          </h2>
-          <p className="text-xs text-slate-600 mt-1">
-            {[
-              personalInfo.email || "seu.email@dominio.com",
-              personalInfo.phone || "(00) 00000-0000",
-              personalInfo.linkedin,
-            ]
-              .filter(Boolean)
-              .join("  •  ")}
-          </p>
-        </div>
+  const handleQuickSaveVersion = () => {
+    try {
+      const existingRaw = localStorage.getItem(SAVED_VERSIONS_STORAGE_KEY);
+      const existingList: SavedResumeVersion[] = existingRaw
+        ? JSON.parse(existingRaw)
+        : [];
+      const matchCtxRaw = sessionStorage.getItem(LAST_MATCH_CONTEXT_KEY);
+      const matchCtx: LastMatchContext | null = matchCtxRaw
+        ? JSON.parse(matchCtxRaw)
+        : null;
 
-        {personalInfo.summary && (
-          <div className="space-y-1">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-0.5">
-              {t("export.summary")}
-            </h3>
-            <p className="text-xs leading-relaxed text-slate-700">
-              {personalInfo.summary}
-            </p>
-          </div>
-        )}
+      const roleLabel =
+        matchCtx?.jobTitle ||
+        experiences[0]?.role.trim() ||
+        (locale === "pt" ? "Currículo Otimizado" : "Optimized Resume");
 
-        {personalInfo.skills && (
-          <div className="space-y-1">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-0.5">
-              {t("export.skills")}
-            </h3>
-            <p className="text-xs leading-relaxed text-slate-700">
-              {personalInfo.skills}
-            </p>
-          </div>
-        )}
+      const newVersion: SavedResumeVersion = {
+        id: generateId(),
+        versionName: `${roleLabel} (${scores.totalScore} pts)`,
+        company: experiences[0]?.company.trim() || "Vaga Alvo",
+        createdAt: new Date().toLocaleDateString(
+          locale === "pt" ? "pt-BR" : "en-US"
+        ),
+        atsScore: scores.totalScore,
+        status: "saved",
+        draft: {
+          personalInfo,
+          experiences,
+          educations,
+        },
+      };
+      localStorage.setItem(
+        SAVED_VERSIONS_STORAGE_KEY,
+        JSON.stringify([newVersion, ...existingList])
+      );
+      setVersionSavedToast(true);
+      setTimeout(() => setVersionSavedToast(false), 3500);
+    } catch {
+      // ignore
+    }
+  };
 
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-0.5">
-            {t("export.experience")}
-          </h3>
-          {experiences.map((exp) => {
-            const bullets = getExperienceBullets(exp);
-            return (
-              <div key={exp.id} className="space-y-1">
-                <div className="flex justify-between text-xs font-bold text-slate-900">
-                  <span>
-                    {exp.role || "Cargo"} — {exp.company || "Empresa"}
-                  </span>
-                  <span className="text-slate-600 font-normal">
-                    {exp.period}
-                  </span>
-                </div>
-                <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
-                  {bullets.map((b, i) => (
-                    <li key={i} className="leading-relaxed">
-                      {b.label ? <strong>{b.label}: </strong> : null}
-                      {b.text}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
+  const renderLivePreviewDocument = () => {
+    const headerBorderClass =
+      templateStyle === "tech"
+        ? "border-b-2 border-[#1D3ECF]"
+        : templateStyle === "executive"
+        ? "border-b-2 border-[#B04EB8]"
+        : "border-b-2 border-slate-900";
+    const sectionHeaderClass =
+      templateStyle === "tech"
+        ? "text-xs font-mono font-bold uppercase tracking-wider text-[#1D3ECF] border-b border-[#1D3ECF]/30 pb-0.5"
+        : templateStyle === "executive"
+        ? "text-xs font-display font-bold uppercase tracking-wider text-[#B04EB8] border-b border-[#B04EB8]/30 pb-0.5"
+        : "text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-0.5";
 
-        <div className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-0.5">
-            {t("export.education")}
-          </h3>
-          {educations.map((edu) => (
-            <div
-              key={edu.id}
-              className="flex justify-between text-xs text-slate-800"
-            >
-              <span>
-                <strong>{edu.degree || "Curso"}</strong> —{" "}
-                {edu.institution || "Instituição"}
-              </span>
-              <span className="text-slate-600">{edu.period}</span>
+    return (
+      <div className="space-y-3">
+        {/* Preview Template & Density Toolbar */}
+        <div className="bg-secondary/40 p-3 rounded-xl border space-y-2.5 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-semibold text-foreground flex items-center gap-1.5">
+              <LayoutTemplate className="h-3.5 w-3.5 text-primary" />
+              {locale === "pt" ? "Layout A4 ATS:" : "A4 ATS Template:"}
+            </span>
+            <div className="flex items-center gap-1">
+              {(
+                [
+                  {
+                    id: "classic",
+                    labelPt: "Clássico Harvard",
+                    labelEn: "Harvard Classic",
+                  },
+                  {
+                    id: "tech",
+                    labelPt: "Tech Minimalista",
+                    labelEn: "Tech Minimal",
+                  },
+                  {
+                    id: "executive",
+                    labelPt: "Executivo",
+                    labelEn: "Executive",
+                  },
+                ] as const
+              ).map((tpl) => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => setTemplateStyle(tpl.id)}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                    templateStyle === tpl.id
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "hover:bg-background text-muted-foreground"
+                  }`}
+                >
+                  {locale === "pt" ? tpl.labelPt : tpl.labelEn}
+                </button>
+              ))}
             </div>
-          ))}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/60">
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">
+                {locale === "pt" ? "Tópicos:" : "Bullets:"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setBulletStyle("executive")}
+                className={`px-2 py-0.5 rounded font-medium transition-colors ${
+                  bulletStyle === "executive"
+                    ? "bg-foreground text-background"
+                    : "hover:bg-background text-muted-foreground"
+                }`}
+              >
+                {locale === "pt" ? "Executivo" : "Executive"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulletStyle("star_labeled")}
+                className={`px-2 py-0.5 rounded font-medium transition-colors ${
+                  bulletStyle === "star_labeled"
+                    ? "bg-foreground text-background"
+                    : "hover:bg-background text-muted-foreground"
+                }`}
+              >
+                STAR
+              </button>
+            </div>
+
+            {/* 1-Page A4 Density Indicator */}
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {pageDensityMetrics.words}{" "}
+                {locale === "pt" ? "palavras" : "words"} (
+                {pageDensityMetrics.fillPercent}% A4)
+              </span>
+              <span
+                className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border ${
+                  pageDensityMetrics.status === "ideal"
+                    ? "palette-pill-mint"
+                    : pageDensityMetrics.status === "overflow"
+                    ? "palette-pill-blush"
+                    : "bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30"
+                }`}
+              >
+                {pageDensityMetrics.status === "ideal"
+                  ? locale === "pt"
+                    ? "1 Página Ideal"
+                    : "Ideal 1-Page"
+                  : pageDensityMetrics.status === "overflow"
+                  ? locale === "pt"
+                    ? "Passando de 1 Pág."
+                    : "Over 1 Page"
+                  : locale === "pt"
+                  ? "Curto (<40% A4)"
+                  : "Short (<40% A4)"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* A4 Sheet */}
+        <div
+          className={`bg-white text-slate-900 rounded-xl p-7 sm:p-8 shadow-card border min-h-[680px] space-y-5 relative overflow-hidden ${
+            templateStyle === "classic" ? "font-serif" : "font-sans"
+          }`}
+        >
+          {templateStyle === "executive" && (
+            <div
+              className="absolute top-0 left-0 right-0 h-1.5"
+              style={{
+                background:
+                  "linear-gradient(90deg, #1D3ECF 0%, #B04EB8 55%, #E6AF00 100%)",
+              }}
+            />
+          )}
+          <div className={`${headerBorderClass} pb-3`}>
+            <h2
+              className={`text-2xl font-bold uppercase tracking-wide ${
+                templateStyle === "tech"
+                  ? "text-[#1D3ECF]"
+                  : templateStyle === "executive"
+                  ? "text-slate-900"
+                  : "text-slate-900"
+              }`}
+            >
+              {personalInfo.name || "SEU NOME COMPLETO"}
+            </h2>
+            <p className="text-xs text-slate-600 mt-1">
+              {[
+                personalInfo.email || "seu.email@dominio.com",
+                personalInfo.phone || "(00) 00000-0000",
+                personalInfo.linkedin,
+              ]
+                .filter(Boolean)
+                .join("  •  ")}
+            </p>
+          </div>
+
+          {personalInfo.summary && (
+            <div className="space-y-1">
+              <h3 className={sectionHeaderClass}>{t("export.summary")}</h3>
+              <p className="text-xs leading-relaxed text-slate-700">
+                {personalInfo.summary}
+              </p>
+            </div>
+          )}
+
+          {personalInfo.skills && (
+            <div className="space-y-1.5">
+              <h3 className={sectionHeaderClass}>{t("export.skills")}</h3>
+              {templateStyle === "tech" ? (
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  {parsedSkillsList.map((sk) => (
+                    <span
+                      key={sk}
+                      className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200"
+                    >
+                      {sk}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs leading-relaxed text-slate-700">
+                  {personalInfo.skills}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <h3 className={sectionHeaderClass}>{t("export.experience")}</h3>
+            {experiences.map((exp) => {
+              const bullets = getExperienceBullets(exp);
+              return (
+                <div key={exp.id} className="space-y-1">
+                  <div className="flex justify-between text-xs font-bold text-slate-900">
+                    <span>
+                      {exp.role || "Cargo"} | {exp.company || "Empresa"}
+                    </span>
+                    <span className="text-slate-600 font-normal font-mono text-[11px]">
+                      {exp.period}
+                    </span>
+                  </div>
+                  <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
+                    {bullets.map((b, i) => (
+                      <li key={i} className="leading-relaxed">
+                        {b.label ? <strong>{b.label}: </strong> : null}
+                        {b.text}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="space-y-2">
+            <h3 className={sectionHeaderClass}>{t("export.education")}</h3>
+            {educations.map((edu) => (
+              <div
+                key={edu.id}
+                className="flex justify-between text-xs text-slate-800"
+              >
+                <span>
+                  <strong>{edu.degree || "Curso"}</strong> |{" "}
+                  {edu.institution || "Instituição"}
+                </span>
+                <span className="text-slate-600 font-mono text-[11px]">
+                  {edu.period}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
-        {/* Top Header & Action Bar */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="space-y-1">
-            <ExpertTip tip={t("rb.tip")}>
-              <h1 className="text-2xl font-bold tracking-tight">
-                {t("rb.title")}
-              </h1>
-            </ExpertTip>
-            <div className="flex items-center gap-3">
+        {/* Studio Header & Action Bar */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-card">
+          <div
+            className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-15 blur-2xl"
+            style={{
+              background: "linear-gradient(135deg, #E6AF00 0%, #B04EB8 100%)",
+            }}
+          />
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#E6AF00]/15 px-2.5 py-0.5 text-[11px] font-mono font-semibold text-[#B88A00] dark:text-[#FFD24C]">
+                  ETAPA 03 / 04 · GERADOR STAR E PREVIEW A4
+                </span>
+                <span className="inline-flex items-center text-[11px] font-medium gap-1 palette-pill-mint border px-2.5 py-0.5 rounded-full">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {t("rb.autoSaved")}
+                </span>
+              </div>
+              <ExpertTip tip={t("rb.tip")}>
+                <h1 className="text-2xl sm:text-3xl font-display font-extrabold tracking-tight">
+                  {t("rb.title")}
+                </h1>
+              </ExpertTip>
               <p className="text-muted-foreground text-sm">
                 {t("rb.subtitle")}
               </p>
-              <span className="hidden md:inline-flex items-center text-xs text-success font-medium gap-1 bg-success/10 px-2 py-0.5 rounded-full">
-                <CheckCircle2 className="h-3 w-3" />
-                {t("rb.autoSaved")}
-              </span>
             </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2 self-start">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.txt,.text"
-              className="hidden"
-              onChange={handleDirectFileUpload}
-            />
-            <Button
-              variant="default"
-              size="sm"
-              disabled={isImporting}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {isImporting ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <Upload className="h-3.5 w-3.5 mr-1.5" />
-              )}
-              {isImporting ? t("rb.importing") : t("rb.importFile")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowPasteModal((v) => !v)}
-            >
-              <ClipboardPaste className="h-3.5 w-3.5 mr-1.5 text-primary" />
-              {locale === "pt" ? "Colar Currículo" : "Paste Resume"}
-            </Button>
-            <Button variant="secondary" size="sm" onClick={handleLoadSample}>
-              <Sparkles className="h-3.5 w-3.5 mr-1.5 text-primary" />
-              {t("rb.loadSample")}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClear}
-              className="text-muted-foreground hover:text-destructive"
-            >
-              <RotateCcw className="h-3.5 w-3.5 mr-1" />
-              {t("rb.clear")}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2 self-start">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.txt,.text"
+                className="hidden"
+                onChange={handleDirectFileUpload}
+              />
+              <Button
+                variant="default"
+                size="sm"
+                disabled={isImporting}
+                onClick={() => fileInputRef.current?.click()}
+                className="gradient-primary text-white border-0 shadow-sm"
+              >
+                {isImporting ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Upload className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                {isImporting ? t("rb.importing") : t("rb.importFile")}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPasteModal((v) => !v)}
+              >
+                <ClipboardPaste className="h-3.5 w-3.5 mr-1.5 text-primary" />
+                {locale === "pt" ? "Colar Currículo" : "Paste Resume"}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleLoadSample}>
+                <Sparkles className="h-3.5 w-3.5 mr-1.5 text-[#B04EB8]" />
+                {t("rb.loadSample")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClear}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                {t("rb.clear")}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -1084,6 +1308,35 @@ export default function ResumeBuilder() {
           <div className="bg-success/10 border border-success/30 text-success rounded-xl p-3.5 flex items-center gap-2.5 text-sm font-medium animate-fade-in">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>{t("rb.importSuccess")}</span>
+          </div>
+        )}
+
+        {/* Confirmation Banner when 1-Click Optimizations arrive from KeywordMatcher */}
+        {appliedOptBanner && (
+          <div className="rounded-xl border palette-pill-mint p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="h-5 w-5 shrink-0" />
+              <div className="text-xs sm:text-sm">
+                <p className="font-semibold">
+                  {locale === "pt"
+                    ? `Otimização de 1-Clique Aplicada: ${appliedOptBanner.appliedBulletsCount} bullet(s) STAR e ${appliedOptBanner.addedSkills.length} skill(s) injetadas no seu currículo.`
+                    : `1-Click Optimization Applied: ${appliedOptBanner.appliedBulletsCount} STAR bullet(s) and ${appliedOptBanner.addedSkills.length} skill(s) injected into your resume.`}
+                </p>
+                {appliedOptBanner.addedSkills.length > 0 && (
+                  <p className="opacity-85 mt-0.5 font-mono text-xs">
+                    + {appliedOptBanner.addedSkills.join(", ")}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAppliedOptBanner(null)}
+              className="h-7 w-7 p-0 self-end sm:self-center"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         )}
 
@@ -1396,8 +1649,8 @@ export default function ResumeBuilder() {
                                 >
                                   <Wand2 className="h-3.5 w-3.5 mr-1.5 text-primary" />
                                   {locale === "pt"
-                                    ? "✨ Completar / Refinar STAR"
-                                    : "✨ Auto-Complete STAR"}
+                                    ? "Completar / Refinar STAR"
+                                    : "Auto-Complete STAR"}
                                 </Button>
                                 {experiences.length > 1 && (
                                   <Button
@@ -1465,10 +1718,10 @@ export default function ResumeBuilder() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                               {/* S - Situation */}
-                              <div className="space-y-1.5 bg-background p-3 rounded-lg border">
+                              <div className="space-y-1.5 bg-background p-3.5 rounded-xl border border-[#1D3ECF]/25">
                                 <div className="flex items-center justify-between">
                                   <Label className="text-xs font-semibold flex items-center gap-1.5">
-                                    <span className="w-5 h-5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[11px] font-bold">
+                                    <span className="w-5 h-5 rounded-md bg-[#1D3ECF]/15 text-[#1D3ECF] dark:text-[#7C9BFF] flex items-center justify-center text-[11px] font-mono font-bold">
                                       S
                                     </span>
                                     {t("rb.situation")}
@@ -1489,10 +1742,10 @@ export default function ResumeBuilder() {
                               </div>
 
                               {/* T - Task */}
-                              <div className="space-y-1.5 bg-background p-3 rounded-lg border">
+                              <div className="space-y-1.5 bg-background p-3.5 rounded-xl border border-[#B04EB8]/25">
                                 <div className="flex items-center justify-between">
                                   <Label className="text-xs font-semibold flex items-center gap-1.5">
-                                    <span className="w-5 h-5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center text-[11px] font-bold">
+                                    <span className="w-5 h-5 rounded-md bg-[#B04EB8]/15 text-[#B04EB8] dark:text-[#E28CE8] flex items-center justify-center text-[11px] font-mono font-bold">
                                       T
                                     </span>
                                     {t("rb.task")}
@@ -1513,10 +1766,10 @@ export default function ResumeBuilder() {
                               </div>
 
                               {/* A - Action */}
-                              <div className="space-y-1.5 bg-background p-3 rounded-lg border">
+                              <div className="space-y-1.5 bg-background p-3.5 rounded-xl border border-[#E6AF00]/30">
                                 <div className="flex items-center justify-between">
                                   <Label className="text-xs font-semibold flex items-center gap-1.5">
-                                    <span className="w-5 h-5 rounded bg-primary/15 text-primary flex items-center justify-center text-[11px] font-bold">
+                                    <span className="w-5 h-5 rounded-md bg-[#E6AF00]/20 text-[#B88A00] dark:text-[#FFD24C] flex items-center justify-center text-[11px] font-mono font-bold">
                                       A
                                     </span>
                                     {t("rb.action")}
@@ -1575,10 +1828,10 @@ export default function ResumeBuilder() {
                               </div>
 
                               {/* R - Result */}
-                              <div className="space-y-1.5 bg-background p-3 rounded-lg border">
+                              <div className="space-y-1.5 bg-background p-3.5 rounded-xl border border-emerald-500/30">
                                 <div className="flex items-center justify-between">
                                   <Label className="text-xs font-semibold flex items-center gap-1.5">
-                                    <span className="w-5 h-5 rounded bg-success/15 text-success flex items-center justify-center text-[11px] font-bold">
+                                    <span className="w-5 h-5 rounded-md palette-pill-mint flex items-center justify-center text-[11px] font-mono font-bold">
                                       R
                                     </span>
                                     {t("rb.result")}
@@ -1832,7 +2085,7 @@ export default function ResumeBuilder() {
               <Separator />
 
               <div className="space-y-2.5">
-                <Button className="w-full" onClick={handleExportPdf}>
+                <Button className="w-full gradient-primary text-white border-0" onClick={handleExportPdf}>
                   <Printer className="h-4 w-4 mr-2" /> {t("rb.exportPdf")}
                 </Button>
                 <Button
@@ -1841,6 +2094,20 @@ export default function ResumeBuilder() {
                   onClick={handleExportTxt}
                 >
                   <Download className="h-4 w-4 mr-2" /> {t("rb.export")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={handleQuickSaveVersion}
+                >
+                  <BookmarkPlus className="h-4 w-4 mr-2 text-[#B04EB8]" />
+                  {versionSavedToast
+                    ? locale === "pt"
+                      ? "Versão Salva no Kanban!"
+                      : "Saved to Kanban!"
+                    : locale === "pt"
+                    ? "Salvar Versão no Kanban"
+                    : "Save Version to Kanban"}
                 </Button>
               </div>
             </div>

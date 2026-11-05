@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,7 +6,14 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
+    /* Custom Palette Tokens: #B04EB8 / #FFEBE8 / #E6AF00 / #D7F7E1 / #1D3ECF */
+    --palette-orchid: #B04EB8;
+    --palette-blush: #FFEBE8;
+    --palette-amber: #E6AF00;
+    --palette-mint: #D7F7E1;
+    --palette-cobalt: #1D3ECF;
+
+    --background: 225 35% 98%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -15,92 +22,115 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 239 84% 67%;
+    /* Primary: #1D3ECF (Royal Cobalt) */
+    --primary: 229 75% 46%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 20% 95%;
-    --secondary-foreground: 222 47% 11%;
+    /* Secondary: Soft editorial surface */
+    --secondary: 226 32% 95%;
+    --secondary-foreground: 222 47% 14%;
 
-    --muted: 215 20% 95%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 225 25% 94%;
+    --muted-foreground: 218 17% 42%;
 
-    --accent: 239 84% 67%;
+    /* Accent: #B04EB8 (Orchid Glow) */
+    --accent: 295 43% 51%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 354 78% 54%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 71% 45%;
+    /* Success: Deep Emerald text paired with #D7F7E1 Mint Pastel surfaces */
+    --success: 148 68% 34%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    /* Warning: #E6AF00 (Amber Gold) */
+    --warning: 46 100% 42%;
+    --warning-foreground: 222 47% 11%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 239 84% 67%;
+    --border: 224 28% 89%;
+    --input: 224 28% 89%;
+    --ring: 229 75% 46%;
 
-    --radius: 0.75rem;
+    --radius: 0.85rem;
 
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 215 20% 85%;
-    --sidebar-primary: 239 84% 67%;
+    /* Sidebar: Deep Midnight Navy with Cobalt & Orchid accents */
+    --sidebar-background: 224 50% 9%;
+    --sidebar-foreground: 214 32% 91%;
+    --sidebar-primary: 229 75% 46%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 16%;
-    --sidebar-accent-foreground: 215 20% 95%;
-    --sidebar-border: 222 47% 18%;
-    --sidebar-ring: 239 84% 67%;
-    --sidebar-muted: 215 16% 47%;
+    --sidebar-accent: 224 42% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 223 38% 16%;
+    --sidebar-ring: 295 43% 51%;
+    --sidebar-muted: 215 18% 58%;
 
-    --chart-1: 239 84% 67%;
-    --chart-2: 142 71% 45%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 215 16% 47%;
+    --chart-1: 229 75% 46%;
+    --chart-2: 295 43% 51%;
+    --chart-3: 46 100% 45%;
+    --chart-4: 148 68% 36%;
+    --chart-5: 8 100% 95%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(239 84% 67%), hsl(239 84% 57%));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 20% 98%));
-    --shadow-card: 0 1px 3px 0 hsl(222 47% 11% / 0.04), 0 1px 2px -1px hsl(222 47% 11% / 0.04);
-    --shadow-elevated: 0 10px 15px -3px hsl(222 47% 11% / 0.06), 0 4px 6px -4px hsl(222 47% 11% / 0.04);
+    --gradient-primary: linear-gradient(135deg, #1D3ECF 0%, #B04EB8 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(225 35% 99%));
+    --shadow-card: 0 2px 10px -2px rgba(29, 62, 207, 0.05), 0 1px 3px -1px rgba(15, 23, 42, 0.04);
+    --shadow-elevated: 0 14px 28px -6px rgba(29, 62, 207, 0.10), 0 4px 10px -3px rgba(176, 78, 184, 0.06);
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 20% 95%;
+    /* @karla.tech Dark Mode System + Palette (#B04EB8 / #FFEBE8 / #E6AF00 / #D7F7E1 / #1D3ECF) */
+    --background: 222 47% 9%;
+    --foreground: 210 40% 98%;
 
-    --card: 222 47% 9%;
-    --card-foreground: 210 20% 95%;
+    --card: 217 33% 14%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 222 47% 9%;
-    --popover-foreground: 210 20% 95%;
+    --popover: 217 33% 13%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 239 84% 67%;
+    /* Luminous Cobalt-Indigo for crisp Dark Mode contrast */
+    --primary: 228 88% 65%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 47% 14%;
-    --secondary-foreground: 210 20% 95%;
+    --secondary: 217 32% 18%;
+    --secondary-foreground: 210 40% 96%;
 
-    --muted: 222 47% 14%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 68%;
 
-    --accent: 222 47% 14%;
-    --accent-foreground: 210 20% 95%;
+    /* Orchid Glow (#B04EB8 luminous) */
+    --accent: 295 62% 62%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 354 75% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 222 47% 16%;
-    --input: 222 47% 16%;
-    --ring: 239 84% 67%;
+    /* Mint / Terminal Green */
+    --success: 145 68% 52%;
+    --success-foreground: 222 47% 9%;
 
-    --sidebar-background: 222 47% 6%;
-    --sidebar-foreground: 215 20% 85%;
-    --sidebar-primary: 239 84% 67%;
+    /* Amber Gold (#E6AF00) */
+    --warning: 46 100% 50%;
+    --warning-foreground: 222 47% 9%;
+
+    --border: 215 25% 23%;
+    --input: 215 25% 23%;
+    --ring: 295 62% 62%;
+
+    --sidebar-background: 224 52% 7%;
+    --sidebar-foreground: 214 32% 90%;
+    --sidebar-primary: 228 88% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 12%;
-    --sidebar-accent-foreground: 215 20% 95%;
-    --sidebar-border: 222 47% 14%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-accent: 217 33% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 28% 16%;
+    --sidebar-ring: 295 62% 62%;
+    --sidebar-muted: 215 18% 58%;
+
+    --gradient-primary: linear-gradient(135deg, #1D3ECF 0%, #B04EB8 100%);
+    --gradient-card: linear-gradient(180deg, hsl(217 33% 15%), hsl(217 33% 13%));
+    --shadow-card: 0 4px 16px -2px rgba(0, 0, 0, 0.35), 0 1px 3px 0 rgba(0, 0, 0, 0.25);
+    --shadow-elevated: 0 16px 32px -6px rgba(0, 0, 0, 0.5), 0 0 20px -4px rgba(176, 78, 184, 0.18);
   }
 }
 
@@ -110,14 +140,48 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-sans antialiased transition-colors duration-200;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(29, 62, 207, 0.06) 0px, transparent 45%),
+      radial-gradient(at 100% 0%, rgba(176, 78, 184, 0.07) 0px, transparent 45%),
+      radial-gradient(at 50% 100%, rgba(215, 247, 225, 0.12) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  .dark body {
+    background-image:
+      radial-gradient(at 0% 0%, rgba(29, 62, 207, 0.16) 0px, transparent 48%),
+      radial-gradient(at 100% 10%, rgba(176, 78, 184, 0.14) 0px, transparent 48%),
+      radial-gradient(at 50% 100%, rgba(230, 175, 0, 0.05) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
   }
 }
 
 @layer utilities {
   .gradient-primary {
     background: var(--gradient-primary);
+  }
+
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #1D3ECF 0%, #B04EB8 65%, #E6AF00 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .dark .text-gradient-brand {
+    background: linear-gradient(135deg, #7C9BFF 0%, #D87CE0 60%, #FFD24C 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
   .shadow-card {
@@ -128,16 +192,38 @@
     box-shadow: var(--shadow-elevated);
   }
 
+  .palette-pill-mint {
+    background-color: #D7F7E1;
+    color: #0F5132;
+  }
+
+  .dark .palette-pill-mint {
+    background-color: rgba(215, 247, 225, 0.12);
+    color: #D7F7E1;
+    border-color: rgba(215, 247, 225, 0.28);
+  }
+
+  .palette-pill-blush {
+    background-color: #FFEBE8;
+    color: #7F1D1D;
+  }
+
+  .dark .palette-pill-blush {
+    background-color: rgba(255, 235, 232, 0.10);
+    color: #FFEBE8;
+    border-color: rgba(255, 235, 232, 0.24);
+  }
+
   .animate-fade-in {
-    animation: fade-in 0.5s ease-out;
+    animation: fade-in 0.45s ease-out;
   }
 
   .animate-slide-up {
-    animation: slide-up 0.4s ease-out;
+    animation: slide-up 0.38s ease-out;
   }
 
   .animate-pulse-soft {
-    animation: pulse-soft 2s ease-in-out infinite;
+    animation: pulse-soft 2.2s ease-in-out infinite;
   }
 
   .animate-score-fill {
@@ -151,13 +237,13 @@
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pulse-soft {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.85; }
 }
 
 @keyframes score-fill {

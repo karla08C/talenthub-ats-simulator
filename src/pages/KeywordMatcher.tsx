@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ExpertTip } from "@/components/ExpertTip";
+import { ScoreGauge } from "@/components/ScoreGauge";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,9 @@ import {
   Mic,
   ArrowRight,
   HelpCircle,
+  KeyRound,
+  FileText,
+  Eraser,
 } from "lucide-react";
 import {
   analyzeKeywordCompatibility,
@@ -39,8 +43,14 @@ import {
   extractJobFromUrl,
   generateBulletPointImprovements,
   generateCareerPrepAssets,
+  applyOptimizationsToBuilderDraft,
+  cleanNoisyJobPageText,
+  generateBulletImprovementsWithGemini,
+  GEMINI_API_KEY_STORAGE,
+  LAST_APPLIED_OPTIMIZATION_KEY,
   type ExtractedJobUrlResult,
   type BulletImprovementSuggestion,
+  type AppliedOptimizationSummary,
 } from "@/lib/careerCopilotEngine";
 import { LAST_PARSED_RESUME_KEY } from "@/pages/ATSParser";
 import {
@@ -76,7 +86,7 @@ Requisitos Obrigatórios:
 - Vivência com pipelines de CI/CD, Git e Testes Automatizados (Jest, Vitest ou Cypress);
 - Metodologias Ágeis (Scrum, Kanban), Liderança técnica e boa Comunicação em Trabalho em Equipe.`;
 
-const SAMPLE_RESUME_KW_PT = `Carla Mendes — Engenheira de Software
+const SAMPLE_RESUME_KW_PT = `Carla Mendes | Engenheira de Software
 Experiência com desenvolvimento web moderno usando JS, TS, React.js e Node.js.
 Construí APIs REST escaláveis integradas com banco Postgres e cache Redis.
 Utilizo Git, Docker e metodologias ágeis (Scrum) no dia a dia com foco em colaboração e trabalho em equipe.`;
@@ -93,7 +103,7 @@ Requirements:
 - Automated Unit Testing (Vitest, Jest, Cypress) and Git;
 - Agile Scrum environment, technical Leadership, and cross-functional Teamwork.`;
 
-const SAMPLE_RESUME_KW_EN = `Carla Mendes — Software Engineer
+const SAMPLE_RESUME_KW_EN = `Carla Mendes | Software Engineer
 Experienced in building modern web apps using JS, TS, ReactJS, and Node.js.
 Designed RESTful services backed by Postgres and Redis.
 Daily user of Git, Docker, and Agile Scrum practices with strong teamwork.`;
@@ -117,6 +127,22 @@ export default function KeywordMatcher() {
   const [appliedBulletIds, setAppliedBulletIds] = useState<Set<string>>(
     new Set()
   );
+  const [cleanedLinesCount, setCleanedLinesCount] = useState<number | null>(
+    null
+  );
+  const [geminiApiKey, setGeminiApiKey] = useState<string>(() => {
+    try {
+      return localStorage.getItem(GEMINI_API_KEY_STORAGE) || "";
+    } catch {
+      return "";
+    }
+  });
+  const [showGeminiConfig, setShowGeminiConfig] = useState(false);
+  const [geminiLoading, setGeminiLoading] = useState(false);
+  const [geminiError, setGeminiError] = useState<string | null>(null);
+  const [customGeminiBullets, setCustomGeminiBullets] = useState<
+    BulletImprovementSuggestion[] | null
+  >(null);
   const resumeFileInputRef = useRef<HTMLInputElement>(null);
 
   // Automatically load resume text if the user just came from ATS Parser
@@ -188,13 +214,76 @@ export default function KeywordMatcher() {
   }, [analyzed, jobDescription, resumeText, extractedJobMeta]);
 
   const bulletImprovements = useMemo(() => {
+    if (customGeminiBullets && customGeminiBullets.length > 0) {
+      return customGeminiBullets;
+    }
     if (!analysis) return [];
     return generateBulletPointImprovements(
       resumeText,
       analysis.missing.map((m) => m.term),
       analysis.matched.map((m) => m.term)
     );
-  }, [analysis, resumeText]);
+  }, [analysis, resumeText, customGeminiBullets]);
+
+  const handleCleanJobNoise = () => {
+    if (!jobDescription.trim()) return;
+    const res = cleanNoisyJobPageText(jobDescription);
+    setJobDescription(res.cleanedText);
+    setCleanedLinesCount(res.removedLinesCount);
+    if (res.detectedRole || res.detectedCompany) {
+      setExtractedJobMeta({
+        platform: "LinkedIn",
+        roleTitle:
+          res.detectedRole ||
+          (locale === "pt" ? "Vaga Extraída" : "Extracted Role"),
+        companyName: res.detectedCompany || "Empresa",
+        jobDescription: res.cleanedText,
+        extractedViaProxy: false,
+      });
+    }
+    setTimeout(() => setCleanedLinesCount(null), 5000);
+  };
+
+  const handleSaveGeminiKey = (val: string) => {
+    setGeminiApiKey(val);
+    try {
+      if (val.trim()) {
+        localStorage.setItem(GEMINI_API_KEY_STORAGE, val.trim());
+      } else {
+        localStorage.removeItem(GEMINI_API_KEY_STORAGE);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleGenerateWithGemini = async () => {
+    if (!geminiApiKey.trim()) {
+      setShowGeminiConfig(true);
+      return;
+    }
+    if (!analysis) return;
+    setGeminiLoading(true);
+    setGeminiError(null);
+    try {
+      const results = await generateBulletImprovementsWithGemini({
+        apiKey: geminiApiKey,
+        resumeText,
+        jobDescription,
+        missingSkills: analysis.missing.map((m) => m.term),
+        locale: locale === "pt" ? "pt" : "en",
+      });
+      setCustomGeminiBullets(results);
+    } catch {
+      setGeminiError(
+        locale === "pt"
+          ? "Não foi possível consultar a Gemini API. Verifique sua chave ou use a reescrita local."
+          : "Could not reach Gemini API. Please check your key or use the local engine."
+      );
+    } finally {
+      setGeminiLoading(false);
+    }
+  };
 
   const jobQuestions = useMemo(() => {
     if (!analysis) return [];
@@ -220,11 +309,92 @@ export default function KeywordMatcher() {
     }
     setResumeText(updatedResume);
     sessionStorage.setItem(LAST_PARSED_RESUME_KEY, updatedResume);
-    syncBuilderFromText(updatedResume);
+
+    try {
+      const existingRaw = localStorage.getItem(RESUME_BUILDER_STORAGE_KEY);
+      const existingDraft = existingRaw
+        ? (JSON.parse(existingRaw) as ResumeDraftData)
+        : null;
+      const updatedDraft = applyOptimizationsToBuilderDraft({
+        existingDraft,
+        fallbackResumeText: updatedResume,
+        improvedBullets: [item],
+        skillsToAdd: item.injectedSkill ? [item.injectedSkill] : [],
+      });
+      localStorage.setItem(
+        RESUME_BUILDER_STORAGE_KEY,
+        JSON.stringify(updatedDraft)
+      );
+      const optSummary: AppliedOptimizationSummary = {
+        timestamp: Date.now(),
+        addedSkills: item.injectedSkill ? [item.injectedSkill] : [],
+        appliedBulletsCount: 1,
+      };
+      sessionStorage.setItem(
+        LAST_APPLIED_OPTIMIZATION_KEY,
+        JSON.stringify(optSummary)
+      );
+    } catch {
+      // ignore
+    }
+
     if (item.injectedSkill) {
-      injectKeywordsIntoBuilder([item.injectedSkill]);
+      setInjectedTerms((prev) => new Set(prev).add(item.injectedSkill));
     }
     setAppliedBulletIds((prev) => new Set(prev).add(item.id));
+  };
+
+  const handleApplyAllAndOpenBuilder = () => {
+    if (!analysis) return;
+    const allMissingSkills = analysis.missing.map((m) => m.term);
+    const unappliedBullets = bulletImprovements.filter(
+      (b) => !appliedBulletIds.has(b.id)
+    );
+
+    let updatedResume = resumeText;
+    for (const item of unappliedBullets) {
+      const cleanOrig = item.originalBullet.replace(/^[-•*▪▸◦]\s*/, "").trim();
+      if (updatedResume.includes(cleanOrig)) {
+        updatedResume = updatedResume.replace(
+          cleanOrig,
+          item.improvedBullet.replace(/^•\s*/, "")
+        );
+      } else {
+        updatedResume = `${updatedResume.trim()}\n${item.improvedBullet}`;
+      }
+    }
+    setResumeText(updatedResume);
+    sessionStorage.setItem(LAST_PARSED_RESUME_KEY, updatedResume);
+
+    try {
+      const existingRaw = localStorage.getItem(RESUME_BUILDER_STORAGE_KEY);
+      const existingDraft = existingRaw
+        ? (JSON.parse(existingRaw) as ResumeDraftData)
+        : null;
+      const updatedDraft = applyOptimizationsToBuilderDraft({
+        existingDraft,
+        fallbackResumeText: updatedResume,
+        improvedBullets: bulletImprovements,
+        skillsToAdd: allMissingSkills,
+      });
+      localStorage.setItem(
+        RESUME_BUILDER_STORAGE_KEY,
+        JSON.stringify(updatedDraft)
+      );
+      const optSummary: AppliedOptimizationSummary = {
+        timestamp: Date.now(),
+        addedSkills: allMissingSkills,
+        appliedBulletsCount: bulletImprovements.length,
+      };
+      sessionStorage.setItem(
+        LAST_APPLIED_OPTIMIZATION_KEY,
+        JSON.stringify(optSummary)
+      );
+    } catch {
+      // ignore
+    }
+
+    navigate("/resume-builder");
   };
 
   const handleLoadSample = () => {
@@ -316,56 +486,82 @@ export default function KeywordMatcher() {
   return (
     <AppLayout>
       <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="space-y-1">
-            <ExpertTip tip={t("kw.tip")}>
-              <h1 className="text-2xl font-bold tracking-tight">
-                {t("kw.title")}
-              </h1>
-            </ExpertTip>
-            <p className="text-muted-foreground">{t("kw.subtitle")}</p>
+        {/* Studio Page Header Banner */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-card">
+          <div
+            className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-15 blur-2xl"
+            style={{
+              background: "linear-gradient(135deg, #B04EB8 0%, #1D3ECF 100%)",
+            }}
+          />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#B04EB8]/15 px-2.5 py-0.5 text-[11px] font-mono font-semibold text-[#B04EB8] dark:text-[#E28CE8]">
+                <span>ETAPA 02 / 04</span>
+                <span>·</span>
+                <span>
+                  {locale === "pt"
+                    ? "RAIO-X DE VAGA E MATCH SEMÂNTICO"
+                    : "JOB X-RAY & SEMANTIC MATCH"}
+                </span>
+              </div>
+              <ExpertTip tip={t("kw.tip")}>
+                <h1 className="text-2xl sm:text-3xl font-display font-extrabold tracking-tight">
+                  {t("kw.title")}
+                </h1>
+              </ExpertTip>
+              <p className="text-sm text-muted-foreground max-w-2xl">
+                {t("kw.subtitle")}
+              </p>
+            </div>
+            {!analyzed && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleLoadSample}
+                className="shrink-0 self-start border border-border/70"
+              >
+                <Sparkles className="h-3.5 w-3.5 mr-1.5 text-[#B04EB8]" />
+                {t("kw.loadSample")}
+              </Button>
+            )}
           </div>
-          {!analyzed && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleLoadSample}
-              className="shrink-0 self-start"
-            >
-              <Sparkles className="h-3.5 w-3.5 mr-1.5 text-primary" />
-              {t("kw.loadSample")}
-            </Button>
-          )}
         </div>
 
         {!analyzed ? (
           <div className="space-y-4">
             {/* LinkedIn / Gupy Job URL Extractor Bar */}
-            <div className="bg-card rounded-xl p-4 border shadow-card space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Link2 className="h-4 w-4 text-primary" />
+            <div className="bg-card rounded-2xl p-5 border border-[#B04EB8]/30 shadow-card space-y-3.5 relative overflow-hidden">
+              <div
+                className="absolute left-0 top-0 bottom-0 w-1"
+                style={{
+                  background: "linear-gradient(180deg, #1D3ECF 0%, #B04EB8 100%)",
+                }}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2 pl-1">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-sm">
+                    <Link2 className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-semibold">
+                    <h2 className="text-sm font-display font-bold">
                       {locale === "pt"
                         ? "Importar Vaga por Link (LinkedIn / Gupy / Greenhouse)"
                         : "Import Job via URL (LinkedIn / Gupy / Greenhouse)"}
                     </h2>
                     <p className="text-xs text-muted-foreground">
                       {locale === "pt"
-                        ? "Cole o link da vaga para extrair os requisitos e gerar o Raio-X de compatibilidade + perguntas técnicas"
-                        : "Paste the job link to extract requirements and generate a full X-Ray + technical questions"}
+                        ? "Cole o link da vaga para extrair os requisitos e gerar o Raio-X de compatibilidade e perguntas técnicas"
+                        : "Paste the job link to extract requirements and generate a full X-Ray and technical questions"}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="secondary"
                     size="sm"
-                    className="h-7 text-xs px-2 text-primary"
+                    className="h-7 text-xs px-2.5 font-mono"
                     onClick={() =>
                       handleExtractJobUrl(
                         "https://www.linkedin.com/jobs/view/desenvolvedor-full-stack-senior-at-nubank"
@@ -376,9 +572,9 @@ export default function KeywordMatcher() {
                   </Button>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="secondary"
                     size="sm"
-                    className="h-7 text-xs px-2 text-primary"
+                    className="h-7 text-xs px-2.5 font-mono"
                     onClick={() =>
                       handleExtractJobUrl(
                         "https://itau.gupy.io/jobs/analista-financeiro-e-dados-senior"
@@ -390,7 +586,7 @@ export default function KeywordMatcher() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 pl-1">
                 <Input
                   value={jobUrl}
                   onChange={(e) => setJobUrl(e.target.value)}
@@ -405,7 +601,7 @@ export default function KeywordMatcher() {
                   type="button"
                   onClick={() => handleExtractJobUrl()}
                   disabled={!jobUrl.trim() || extractingUrl}
-                  className="shrink-0"
+                  className="shrink-0 gradient-primary text-white border-0"
                 >
                   {extractingUrl ? (
                     <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
@@ -417,37 +613,73 @@ export default function KeywordMatcher() {
               </div>
 
               {extractedJobMeta && (
-                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                  <Badge variant="secondary" className="font-semibold">
+                <div className="flex flex-wrap items-center gap-2 pt-1 pl-1 text-xs">
+                  <Badge className="font-mono font-semibold palette-pill-mint border">
                     {extractedJobMeta.platform}
                   </Badge>
-                  <span className="font-medium text-foreground">
+                  <span className="font-semibold text-foreground">
                     {extractedJobMeta.roleTitle}
                   </span>
                   <span className="text-muted-foreground">
-                    • {extractedJobMeta.companyName}
+                    · {extractedJobMeta.companyName}
                   </span>
                 </div>
               )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between min-h-7">
-                  <label className="text-sm font-medium">
+              <div className="bg-card rounded-2xl border border-border/80 shadow-card overflow-hidden flex flex-col">
+                <div className="px-4 py-2.5 bg-secondary/40 border-b flex flex-wrap items-center justify-between gap-2 min-h-11">
+                  <label className="text-xs font-display font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                    <Briefcase className="h-3.5 w-3.5 text-[#B04EB8]" />
                     {t("kw.jobLabel")}
                   </label>
+                  <div className="flex items-center gap-2">
+                    {cleanedLinesCount !== null && (
+                      <Badge className="text-[10px] palette-pill-mint border">
+                        {locale === "pt"
+                          ? `${cleanedLinesCount} linhas de ruído removidas`
+                          : `${cleanedLinesCount} noisy lines removed`}
+                      </Badge>
+                    )}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={!jobDescription.trim()}
+                      onClick={handleCleanJobNoise}
+                      title={
+                        locale === "pt"
+                          ? "Remove menus, cabeçalhos e rodapés de textos copiados com Ctrl+A do LinkedIn/Gupy"
+                          : "Strips headers, menus, and footers from Ctrl+A copied LinkedIn/Gupy pages"
+                      }
+                      className="h-7 text-xs px-2"
+                    >
+                      <Eraser className="h-3 w-3 mr-1 text-[#B04EB8]" />
+                      {locale === "pt"
+                        ? "Limpar Ctrl+A (LinkedIn)"
+                        : "Clean Ctrl+A Noise"}
+                    </Button>
+                    {jobDescription.trim() && (
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        {jobDescription.trim().split(/\s+/).length}{" "}
+                        {locale === "pt" ? "palavras" : "words"}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <Textarea
                   placeholder={t("kw.jobPlaceholder")}
                   value={jobDescription}
                   onChange={(e) => setJobDescription(e.target.value)}
-                  className="min-h-[280px] text-sm leading-relaxed"
+                  className="min-h-[280px] border-0 rounded-none focus-visible:ring-0 p-4 text-sm leading-relaxed flex-1 resize-y"
                 />
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2 min-h-7">
-                  <label className="text-sm font-medium">
+
+              <div className="bg-card rounded-2xl border border-border/80 shadow-card overflow-hidden flex flex-col">
+                <div className="px-4 py-2.5 bg-secondary/40 border-b flex items-center justify-between gap-2 min-h-11">
+                  <label className="text-xs font-display font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                    <CheckCircle className="h-3.5 w-3.5 text-primary" />
                     {t("kw.resumeLabel")}
                   </label>
                   <div className="flex items-center gap-1.5">
@@ -494,14 +726,14 @@ export default function KeywordMatcher() {
                   placeholder={t("kw.resumePlaceholder")}
                   value={resumeText}
                   onChange={(e) => setResumeText(e.target.value)}
-                  className="min-h-[280px] text-sm leading-relaxed"
+                  className="min-h-[280px] border-0 rounded-none focus-visible:ring-0 p-4 text-sm leading-relaxed flex-1 resize-y"
                 />
               </div>
             </div>
             <Button
               onClick={() => setAnalyzed(true)}
               disabled={!jobDescription.trim() || !resumeText.trim()}
-              className="w-full h-11 text-base font-semibold"
+              className="w-full h-11 text-base font-semibold gradient-primary text-white border-0 shadow-sm"
             >
               <Search className="h-4 w-4 mr-2" />
               {t("kw.analyze")}
@@ -510,23 +742,13 @@ export default function KeywordMatcher() {
         ) : analysis ? (
           <div className="space-y-6 animate-slide-up">
             {/* Weighted Score & Category Breakdown */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-card rounded-xl p-6 shadow-card border items-center">
-              <div className="text-center border-b md:border-b-0 md:border-r pb-4 md:pb-0 md:pr-4">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-card rounded-2xl p-6 shadow-card border border-border/80 items-center">
+              <div className="flex flex-col items-center justify-center border-b md:border-b-0 md:border-r pb-4 md:pb-0 md:pr-4">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground font-semibold mb-2">
                   {t("kw.matchRate")}
                 </p>
-                <p
-                  className={`text-5xl font-bold ${
-                    analysis.overallWeightedScore >= 70
-                      ? "text-success"
-                      : analysis.overallWeightedScore >= 45
-                      ? "text-warning"
-                      : "text-destructive"
-                  }`}
-                >
-                  {analysis.overallWeightedScore}%
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
+                <ScoreGauge score={analysis.overallWeightedScore} size={135} />
+                <p className="text-xs font-mono text-muted-foreground mt-2">
                   {analysis.exactMatchCount} / {analysis.totalKeywordsCount}{" "}
                   {t("kw.found")}
                 </p>
@@ -698,7 +920,7 @@ export default function KeywordMatcher() {
             {/* AI Bullet Point Improvements (Before -> After) */}
             {bulletImprovements.length > 0 && (
               <div className="bg-card rounded-xl p-6 border shadow-card space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-primary" />
@@ -712,7 +934,89 @@ export default function KeywordMatcher() {
                         : "Smart rewrites of your actual resume bullets injecting missing job keywords and impact metrics"}
                     </p>
                   </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowGeminiConfig((v) => !v)}
+                      className="h-8 text-xs"
+                    >
+                      <KeyRound className="h-3.5 w-3.5 mr-1.5 text-[#B04EB8]" />
+                      {geminiApiKey.trim()
+                        ? locale === "pt"
+                          ? "Gemini API Configurada"
+                          : "Gemini API Ready"
+                        : locale === "pt"
+                        ? "Configurar Gemini API"
+                        : "Configure Gemini API"}
+                    </Button>
+                    {geminiApiKey.trim() && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={geminiLoading}
+                        onClick={handleGenerateWithGemini}
+                        className="h-8 text-xs"
+                      >
+                        {geminiLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3.5 w-3.5 mr-1.5 text-[#B04EB8]" />
+                        )}
+                        {locale === "pt"
+                          ? "Gerar com Gemini 2.5"
+                          : "Rewrite with Gemini 2.5"}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleApplyAllAndOpenBuilder}
+                      className="h-8 text-xs gradient-primary text-white border-0 shadow-sm"
+                    >
+                      <FileText className="h-3.5 w-3.5 mr-1.5" />
+                      {locale === "pt"
+                        ? "Aplicar Tudo no Construtor A4 (1-Clique)"
+                        : "Apply All to A4 Builder (1-Click)"}
+                    </Button>
+                  </div>
                 </div>
+
+                {showGeminiConfig && (
+                  <div className="rounded-xl border border-[#B04EB8]/30 bg-secondary/40 p-3.5 space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <p className="text-xs font-medium">
+                        {locale === "pt"
+                          ? "Chave opcional do Google Gemini (salva apenas no seu navegador para reescritas profundas via LLM):"
+                          : "Optional Google Gemini API Key (stored locally in your browser for deep LLM rewrites):"}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="password"
+                          value={geminiApiKey}
+                          onChange={(e) => handleSaveGeminiKey(e.target.value)}
+                          placeholder="AIzaSy..."
+                          className="h-8 text-xs w-60 font-mono"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={!geminiApiKey.trim() || geminiLoading}
+                          onClick={handleGenerateWithGemini}
+                          className="h-8 text-xs"
+                        >
+                          {locale === "pt" ? "Reescrever Agora" : "Rewrite Now"}
+                        </Button>
+                      </div>
+                    </div>
+                    {geminiError && (
+                      <p className="text-xs text-destructive">{geminiError}</p>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   {bulletImprovements.map((item) => {
@@ -839,7 +1143,7 @@ export default function KeywordMatcher() {
                         "{locale === "pt" ? q.questionPt : q.questionEn}"
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        💡 {locale === "pt" ? q.tipPt : q.tipEn}
+                        {locale === "pt" ? q.tipPt : q.tipEn}
                       </p>
                     </div>
                   ))}
