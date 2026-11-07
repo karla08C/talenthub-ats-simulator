@@ -114,8 +114,8 @@ export default function Login() {
       {/* Minimal Top Bar */}
       <header className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="gradient-primary flex h-9 w-9 items-center justify-center rounded-xl shadow-sm">
-            <Sparkles className="h-4 w-4 text-white" />
+          <div className="gradient-primary flex h-9 w-9 items-center justify-center rounded-xl shadow-sm font-display font-extrabold text-xs tracking-tight text-white">
+            TH
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">

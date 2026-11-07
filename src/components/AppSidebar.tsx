@@ -43,8 +43,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="p-4 border-b border-sidebar-border/60">
         <div className="flex items-center gap-3">
-          <div className="gradient-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm">
-            <Sparkles className="h-4 w-4 text-white" />
+          <div className="gradient-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm font-display font-extrabold text-xs tracking-tight text-white">
+            TH
           </div>
           {!collapsed && (
             <div className="flex flex-col">
